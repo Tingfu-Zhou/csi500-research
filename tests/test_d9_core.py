@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from scripts.pull_d9_oos import validate_annual_frame
 from src.d9_core import (
     OOSIntegrityError,
     OOSThresholds,
@@ -189,3 +190,50 @@ def test_only_new_d9_config_section_may_differ_from_freeze() -> None:
     changed = {**current, "d8": {"top_n": 99}}
     with pytest.raises(OOSIntegrityError, match="frozen-oos"):
         assert_frozen_config_unchanged(changed, frozen)
+
+
+def test_d9_ingestion_rejects_missing_required_market_date() -> None:
+    expected = pd.DatetimeIndex(["2019-01-02", "2019-01-03"])
+    frame = pd.DataFrame(
+        {
+            "ts_code": ["000001.SZ"],
+            "trade_date": ["20190102"],
+            "close": [10.0],
+            "turnover_rate": [1.0],
+            "turnover_rate_f": [1.0],
+            "volume_ratio": [1.0],
+            "pe": [10.0],
+            "pe_ttm": [10.0],
+            "pb": [1.0],
+            "ps": [1.0],
+            "ps_ttm": [1.0],
+            "dv_ratio": [0.0],
+            "dv_ttm": [0.0],
+            "total_share": [1.0],
+            "float_share": [1.0],
+            "free_share": [1.0],
+            "total_mv": [10.0],
+            "circ_mv": [10.0],
+        }
+    )
+    with pytest.raises(ValueError, match="缺少 1 个交易日"):
+        validate_annual_frame(
+            frame,
+            endpoint="daily_basic",
+            year=2019,
+            expected_dates=expected,
+        )
+
+
+def test_d9_ingestion_allows_empty_suspension_year() -> None:
+    frame = pd.DataFrame(
+        columns=["ts_code", "trade_date", "suspend_timing", "suspend_type"]
+    )
+    audit = validate_annual_frame(
+        frame,
+        endpoint="suspend_d",
+        year=2019,
+        expected_dates=pd.DatetimeIndex(["2019-01-02"]),
+    )
+    assert audit["passed"] is True
+    assert audit["rows"] == 0

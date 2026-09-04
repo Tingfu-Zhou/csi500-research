@@ -290,7 +290,15 @@ def preflight(config: dict) -> tuple[dict[str, object], dict[str, dict]]:
     if not membership.exists():
         missing.append(str(membership))
     if missing:
-        raise FileNotFoundError("D9 预检缺少文件：\n- " + "\n- ".join(missing))
+        hint = (
+            "\n当前仍为 design 模式；请先运行 "
+            "python scripts/pull_d9_oos.py，将缺失的 OOS 原始文件直接写入 sealed。"
+            if access.mode == "design"
+            else ""
+        )
+        raise FileNotFoundError(
+            "D9 预检缺少文件：\n- " + "\n- ".join(missing) + hint
+        )
     try:
         import clarabel
         import cvxpy as cp

@@ -217,6 +217,7 @@ d9:
     - config/config.yaml
     - src/d9_core.py
     - scripts/d9_pipeline.py
+    - scripts/pull_d9_oos.py
     - tests/test_d9_core.py
     - D9运行说明.md
   thresholds:
