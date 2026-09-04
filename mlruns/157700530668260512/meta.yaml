@@ -1,0 +1,9 @@
+artifact_location: file:///home/tingfu/projects/csi500-research/mlruns/157700530668260512
+creation_time: 1788351666111
+effective_trace_archival_retention: null
+experiment_id: '157700530668260512'
+last_update_time: 1788351666111
+lifecycle_stage: active
+name: workflow
+trace_location: null
+workspace: default

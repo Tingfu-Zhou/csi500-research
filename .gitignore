@@ -1,0 +1,30 @@
+# 密钥和本地配置
+.env
+.env.*
+*.key
+*.pem
+config/config.local.yaml
+
+# Python 缓存和虚拟环境
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# 数据、模型和大型中间文件
+data/
+models/
+artifacts/
+outputs/
+*.parquet
+*.csv
+*.pkl
+*.pickle
+*.joblib
+*.zip
+*.log
+
+# 编辑器和系统文件
+.vscode/
+.DS_Store

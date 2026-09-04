@@ -1,0 +1,229 @@
+{
+  "mode": "design",
+  "oos_data_accessed": false,
+  "main_capital_cny": 10000000.0,
+  "optimized_turnover_reference": "frozen_d7_pretrade_path",
+  "capital_scenarios": [
+    10000000.0,
+    20000000.0
+  ],
+  "capital_scenarios_text": "10,000,000元、20,000,000元",
+  "signal_window": {
+    "start": "2017-01-06",
+    "end": "2018-12-14",
+    "dates": 98
+  },
+  "upstream_d3_passed": true,
+  "upstream_d6_passed": true,
+  "upstream_d7": {
+    "structural_checks_passed": true,
+    "tracking_error_passed": false,
+    "overall_d7_passed": false,
+    "tracking_error_median": 0.03541919060906655,
+    "tracking_error_acceptance_min": 0.04
+  },
+  "layer6_match": {
+    "rows": 49000,
+    "same_keys": true,
+    "maximum_absolute_weight_difference": 0.0,
+    "passed": true
+  },
+  "layers": [
+    {
+      "layer": 0,
+      "name": "Top100等权_无成本无约束",
+      "annualized_excess_return": 0.11385631664164819,
+      "annualized_portfolio_return": -0.07969154322435967,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.03461201533167981,
+      "target_turnover_median": 0.6690161130571111,
+      "executed_turnover_mean": 0.6703154791830264,
+      "transaction_cost": 0.0,
+      "impact_cost": 0.0,
+      "blocked_by_tradability_rows": 0,
+      "fill_ratio": 1.0,
+      "explanation": "原始 Top100 等权信号基线"
+    },
+    {
+      "layer": 1,
+      "name": "加真实成本",
+      "annualized_excess_return": 0.052551117413714876,
+      "annualized_portfolio_return": -0.140996742452293,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.03461201533167981,
+      "target_turnover_median": 0.6690161130571111,
+      "executed_turnover_mean": 0.6696242545430745,
+      "transaction_cost": 1258639.827762806,
+      "impact_cost": 430637.5914551201,
+      "blocked_by_tradability_rows": 0,
+      "fill_ratio": 0.9990030020661221,
+      "explanation": "在相同理想成交路径上加入动态冲击、佣金、过户费和卖出印花税"
+    },
+    {
+      "layer": 2,
+      "name": "加可交易性过滤",
+      "annualized_excess_return": 0.11381483108138368,
+      "annualized_portfolio_return": -0.07973302878462418,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.03461201533167981,
+      "target_turnover_median": 0.6690161130571111,
+      "executed_turnover_mean": 0.5382429789508708,
+      "transaction_cost": 1005916.4930344713,
+      "impact_cost": 323984.80385286745,
+      "blocked_by_tradability_rows": 2080,
+      "fill_ratio": 0.8460003283103991,
+      "explanation": "启用停牌、涨跌停、ST、上市时长、流动性过滤及5%成交额上限"
+    },
+    {
+      "layer": 3,
+      "name": "加行业中性",
+      "annualized_excess_return": 0.0686071679687088,
+      "annualized_portfolio_return": -0.12494069189729906,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.07530267372545857,
+      "target_turnover_median": 0.8579499543461814,
+      "executed_turnover_mean": 0.6968826793307048,
+      "transaction_cost": 1805973.8498080946,
+      "impact_cost": 946083.4138418628,
+      "blocked_by_tradability_rows": 574,
+      "fill_ratio": 0.8920895099187705,
+      "explanation": "组合构造切换为带成本目标的优化器，并加入行业主动偏离约束"
+    },
+    {
+      "layer": 4,
+      "name": "加SizeBeta中性",
+      "annualized_excess_return": 0.03925955881190912,
+      "annualized_portfolio_return": -0.15428830105409874,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.07334838226191823,
+      "target_turnover_median": 0.8549640180713671,
+      "executed_turnover_mean": 0.7109298646397453,
+      "transaction_cost": 1764149.3614040762,
+      "impact_cost": 904862.4827796813,
+      "blocked_by_tradability_rows": 576,
+      "fill_ratio": 0.9046143569492116,
+      "explanation": "在行业约束上增加 Size 与 Beta 主动暴露约束"
+    },
+    {
+      "layer": 5,
+      "name": "加换手上限",
+      "annualized_excess_return": 0.06265652940584232,
+      "annualized_portfolio_return": -0.13089133046016554,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.040329017963121605,
+      "target_turnover_median": 0.14999998506968926,
+      "executed_turnover_mean": 0.1924071803566908,
+      "transaction_cost": 394453.87429273,
+      "impact_cost": 156439.63882155484,
+      "blocked_by_tradability_rows": 2441,
+      "fill_ratio": 0.7416884667404933,
+      "explanation": "相对同一冻结D7事前持仓，在上一层增加15%单边目标换手上限"
+    },
+    {
+      "layer": 6,
+      "name": "加个股偏离上限",
+      "annualized_excess_return": 0.07642370367055218,
+      "annualized_portfolio_return": -0.11712415619545569,
+      "annualized_benchmark_return": -0.19354785986600787,
+      "ex_ante_te_median": 0.03541919060906655,
+      "target_turnover_median": 0.14999997670217158,
+      "executed_turnover_mean": 0.13412434042897964,
+      "transaction_cost": 254943.90149464842,
+      "impact_cost": 88703.487396029,
+      "blocked_by_tradability_rows": 2537,
+      "fill_ratio": 0.6865155977788404,
+      "explanation": "在上一层增加1.5%个股主动权重偏离上限；直接复用冻结的D7目标"
+    }
+  ],
+  "target_constraint_audit": {
+    "0": {
+      "maximum_stock_active": 0.01146732426764253,
+      "maximum_industry_active": 0.16638616891184752,
+      "maximum_style_active": 0.904845420387878,
+      "maximum_target_turnover": 0.8446617646653969,
+      "target_turnover_median": 0.6690161130571111,
+      "minimum_holdings": 100,
+      "median_holdings": 100.0,
+      "maximum_holdings": 100
+    },
+    "1": {
+      "maximum_stock_active": 0.01146732426764253,
+      "maximum_industry_active": 0.16638616891184752,
+      "maximum_style_active": 0.904845420387878,
+      "maximum_target_turnover": 0.8446617646653969,
+      "target_turnover_median": 0.6690161130571111,
+      "minimum_holdings": 100,
+      "median_holdings": 100.0,
+      "maximum_holdings": 100
+    },
+    "2": {
+      "maximum_stock_active": 0.01146732426764253,
+      "maximum_industry_active": 0.16638616891184752,
+      "maximum_style_active": 0.904845420387878,
+      "maximum_target_turnover": 0.8446617646653969,
+      "target_turnover_median": 0.6690161130571111,
+      "minimum_holdings": 100,
+      "median_holdings": 100.0,
+      "maximum_holdings": 100
+    },
+    "3": {
+      "maximum_stock_active": 0.14333980953096573,
+      "maximum_industry_active": 0.020000107222617327,
+      "maximum_style_active": 1.1035978867718645,
+      "maximum_target_turnover": 0.9580800737272674,
+      "target_turnover_median": 0.8579499543461814,
+      "minimum_holdings": 23,
+      "median_holdings": 29.0,
+      "maximum_holdings": 53
+    },
+    "4": {
+      "maximum_stock_active": 0.14333981528262915,
+      "maximum_industry_active": 0.020000115294532522,
+      "maximum_style_active": 0.30000023955553656,
+      "maximum_target_turnover": 0.9580800737272674,
+      "target_turnover_median": 0.8549640180713671,
+      "minimum_holdings": 24,
+      "median_holdings": 29.0,
+      "maximum_holdings": 53
+    },
+    "5": {
+      "maximum_stock_active": 0.07858455078699765,
+      "maximum_industry_active": 0.020000096346156484,
+      "maximum_style_active": 0.3000001866056902,
+      "maximum_target_turnover": 0.15000014532237016,
+      "target_turnover_median": 0.14999998506968926,
+      "minimum_holdings": 71,
+      "median_holdings": 82.0,
+      "maximum_holdings": 427
+    },
+    "6": {
+      "maximum_stock_active": 0.015000008433209039,
+      "maximum_industry_active": 0.020000094378054147,
+      "maximum_style_active": 0.30000011694609413,
+      "maximum_target_turnover": 0.1500000250706983,
+      "target_turnover_median": 0.14999997670217158,
+      "minimum_holdings": 77,
+      "median_holdings": 88.0,
+      "maximum_holdings": 428
+    }
+  },
+  "acceptance": {
+    "seven_layers_complete": true,
+    "layer6_matches_frozen_d7": true,
+    "cost_layer_effective": true,
+    "cost_layer_isolated": true,
+    "dynamic_impact_used": true,
+    "tradability_layer_effective": true,
+    "layer_3_5_solver_success_100pct": true,
+    "layer_3_5_fallback_zero": true,
+    "industry_constraint": true,
+    "style_constraint": true,
+    "turnover_constraint": true,
+    "stock_constraint": true,
+    "turnover_changed_as_expected": true,
+    "t_plus_one_all_layers": true,
+    "explanations_complete": true,
+    "oos_sealed": true,
+    "passed": true
+  }
+}

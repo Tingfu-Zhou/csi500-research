@@ -1,0 +1,204 @@
+project:
+  name: csi500-research
+  timezone: Asia/Shanghai
+  random_seed: 42
+
+data:
+  start_date: "2014-01-01"
+  end_date: "2026-08-31"
+  qlib_provider_uri: "/home/tingfu/.qlib/qlib_data/cn_data_community"
+  qlib_market: csi500
+  tushare_raw_dir: "data/raw/tushare"
+  tushare_sealed_dir: "data/_sealed/tushare"
+  processed_design_dir: "data/processed/design"
+  reports_dir: "reports"
+  models_dir: "models"
+  figures_dir: "reports/figures"
+  window_marker: "data/.window_mode.json"
+
+universe:
+  name: csi500
+  pit_only: true
+  allow_non_constituents: false
+  membership_replacements:
+    - effective_start: "2017-02-14"
+      effective_end: "2017-06-29"
+      remove_instrument: SH600549
+      add_instrument: SH600848
+      anchor_snapshot_date: "2017-02-28"
+      reason: "2017-02-14 临时调整：厦门钨业调出中证500，上海临港调入；Qlib 社区成分区间延迟至 2017-06-30"
+      evidence: "Tushare index_weight 月末快照；https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600549.phtml；https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600848.phtml"
+
+benchmark:
+  constituent_code: "000905.SH"
+  total_return_code: "H00905.CSI"
+  weight_source: tushare_index_weight
+  intramonth_weight_method: return_drift
+  bootstrap_months: 2
+  weight_sum_tolerance: 1.0e-8
+
+signal:
+  generated_at: T_close
+  sampling_frequency: weekly
+  score_weekday: Friday
+
+execution:
+  day: T+1
+  price: vwap
+  rebalance_frequency: weekly
+  participation_limit: 0.05
+
+label:
+  type: excess_return
+  horizon_trade_days: 5
+  entry: T+1_vwap
+  exit: T+6_vwap
+
+training:
+  purge_trade_days: 5
+  retrain_method: expanding
+  retrain_frequency: yearly
+
+windows:
+  design_start: "2014-01-01"
+  design_end: "2018-12-31"
+  oos_start: "2019-01-01"
+  oos_end: "2026-08-31"
+
+validation:
+  sample_stock_count: 50
+  sample_trade_day_count: 20
+  relative_tolerance: 0.001
+  qlib_raw_price_formula: "$close / $factor"
+  factor_compare_method: within_stock_ratio
+
+tradability:
+  listing_min_trade_days: 120
+  amount_lookback_trade_days: 20
+  min_avg_daily_amount_cny: 50000000
+  qlib_amount_multiplier_to_cny: 1000
+  one_price_relative_tolerance: 1.0e-6
+  one_price_absolute_tolerance_cny: 0.0051
+
+portfolio:
+  holdings_min: 80
+  holdings_max: 120
+  capital_scenarios:
+    - 10000000
+    - 20000000
+
+costs:
+  commission_rate: 0.00015
+  transfer_fee_rate: 0.00001
+  stamp_duty:
+    - start_date: "2014-01-01"
+      end_date: "2023-08-27"
+      rate: 0.001
+    - start_date: "2023-08-28"
+      end_date: "2026-08-31"
+      rate: 0.0005
+  impact:
+    coefficient: 0.5
+    formula: "coefficient * volatility * sqrt(trade_amount / daily_amount)"
+    volatility_lookback_trade_days: 20
+    volatility_lag_trade_days: 1
+    minimum_observations: 20
+    fallback_daily_volatility: 0.03
+  stress_cost_bp:
+    - 20
+    - 30
+
+d3:
+  future_perturbation_checks: 8
+  future_perturbation_rtol: 1.0e-12
+  future_perturbation_atol: 1.0e-12
+  replication_max_annualized_difference: 0.005
+
+d4:
+  feature_set: Alpha158
+  expected_feature_count: 158
+  train_start: "2014-01-01"
+  train_end: "2016-12-31"
+  validation_start: "2017-01-01"
+  validation_end: "2018-12-31"
+  ic_decay_horizons:
+    - 1
+    - 5
+    - 10
+    - 20
+  deciles: 10
+  acceptance:
+    rank_ic_mean_min: 0.02
+    icir_min: 0.25
+    monotonic_min_adjacent_steps: 7
+
+d5:
+  score_transform: cross_sectional_rank_gaussian
+  calibration_method: date_balanced_zero_intercept_ols
+  calibration_deciles: 10
+  calibration_scale_tolerance: 0.30
+  minimum_calibration_history_years: 1
+  expected_return_column: expected_5d_excess
+
+d6:
+  industry_version: SW2021
+  industry_mapping_file: data/processed/design/sw2021_l1_static.parquet
+  industry_catalog_file: data/processed/design/sw2021_l1_catalog.parquet
+  expected_industry_count: 31
+  style_factors:
+    - Size
+    - NonlinearSize
+    - Beta
+    - Momentum
+    - ResidualVolatility
+    - Liquidity
+  winsor_mad_multiple: 3.0
+  beta_window_trade_days: 252
+  beta_minimum_observations: 252
+  momentum_window_trade_days: 252
+  momentum_skip_trade_days: 21
+  liquidity_window_trade_days: 21
+  liquidity_minimum_observations: 5
+  covariance_window_trade_days: 252
+  covariance_minimum_observations: 126
+  history_buffer_calendar_days: 550
+  daily_basic_warmup_calendar_days: 90
+  normalization_tolerance: 1.0e-10
+  industry_exposure_tolerance: 1.0e-12
+
+d7:
+  solver: CLARABEL
+  initial_portfolio: benchmark
+  objective_cost_method: symmetric_linear_fees_and_half_stamp
+  stock_active_limit: 0.015
+  industry_active_limit: 0.02
+  style_active_limit: 0.30
+  constrained_style_factors:
+    - Size
+    - Beta
+  single_sided_turnover_limit: 0.15
+  constraint_tolerance: 1.0e-6
+  covariance_annualization_factor: 252
+  covariance_minimum_active_l1_coverage: 0.95
+  tracking_error_acceptance_min: 0.04
+  tracking_error_acceptance_max: 0.06
+  tracking_error_acceptance_statistic: median
+
+d8:
+  top_n: 100
+  main_capital_cny: 10000000
+  layer_ids:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+  ideal_participation_limit: 1.0
+  layer6_target_match_tolerance: 1.0e-10
+  return_annualization_factor: 252
+
+industry:
+  classification: sw_level1
+  pit: false

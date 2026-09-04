@@ -1,0 +1,116 @@
+{
+  "mode": "design",
+  "upstream_d5_passed": true,
+  "oos_data_accessed": false,
+  "industry": {
+    "classification": "申万一级 SW2021",
+    "pit": false,
+    "expected_industries": 31,
+    "actual_industries": 31,
+    "required_instruments": 909,
+    "mapped_instruments": 909
+  },
+  "factors": {
+    "industry": 31,
+    "style": 6,
+    "total": 37,
+    "industry_columns": [
+      "industry_801010_SI",
+      "industry_801030_SI",
+      "industry_801040_SI",
+      "industry_801050_SI",
+      "industry_801080_SI",
+      "industry_801110_SI",
+      "industry_801120_SI",
+      "industry_801130_SI",
+      "industry_801140_SI",
+      "industry_801150_SI",
+      "industry_801160_SI",
+      "industry_801170_SI",
+      "industry_801180_SI",
+      "industry_801200_SI",
+      "industry_801210_SI",
+      "industry_801230_SI",
+      "industry_801710_SI",
+      "industry_801720_SI",
+      "industry_801730_SI",
+      "industry_801740_SI",
+      "industry_801750_SI",
+      "industry_801760_SI",
+      "industry_801770_SI",
+      "industry_801780_SI",
+      "industry_801790_SI",
+      "industry_801880_SI",
+      "industry_801890_SI",
+      "industry_801950_SI",
+      "industry_801960_SI",
+      "industry_801970_SI",
+      "industry_801980_SI"
+    ],
+    "style_columns": [
+      "style_Size",
+      "style_NonlinearSize",
+      "style_Beta",
+      "style_Momentum",
+      "style_ResidualVolatility",
+      "style_Liquidity"
+    ]
+  },
+  "exposures": {
+    "start": "2014-01-02",
+    "end": "2018-12-28",
+    "dates": 1220,
+    "rows": 610000,
+    "history_buffer_start": "2012-06-30"
+  },
+  "style_quality": {
+    "minimum_raw_coverage": 0.246,
+    "maximum_neutral_imputation_rate": 0.754
+  },
+  "matrix_audit": {
+    "weekly_dates": 257,
+    "minimum_rank": 35,
+    "minimum_effective_columns": 35,
+    "minimum_active_industries": 29,
+    "minimum_global_rank": 35,
+    "maximum_inactive_industries": 2,
+    "industry_row_sum_max_error": 0.0,
+    "style_market_cap_weighted_mean_max_abs": 1.0859368959614812e-14,
+    "style_equal_weight_std_max_error": 3.3306690738754696e-16,
+    "benchmark_industry_exposure_max_error": 2.7755575615628914e-17
+  },
+  "covariance": {
+    "as_of_date": "2018-12-28",
+    "estimator": "sklearn.covariance.LedoitWolf",
+    "frequency": "daily",
+    "annualization_factor_for_te": 252,
+    "observations": 252,
+    "included_instruments": 492,
+    "excluded_instruments": [
+      "SH600086",
+      "SH600751",
+      "SH600759",
+      "SH601869",
+      "SZ000564",
+      "SZ002147",
+      "SZ002512",
+      "SZ300197"
+    ],
+    "excluded_count": 8,
+    "shrinkage": 0.04855213233620669,
+    "minimum_eigenvalue": 3.049498548212027e-05,
+    "maximum_eigenvalue": 0.11256612445790509,
+    "usage": "ex-ante tracking-error reporting only; not an optimization constraint",
+    "matrix_file": "reports/d6_covariance_latest.npz"
+  },
+  "acceptance": {
+    "upstream_d5": true,
+    "design_window_coverage": true,
+    "full_rank": true,
+    "style_normalization": true,
+    "industry_one_hot": true,
+    "benchmark_industry_exposure": true,
+    "covariance_positive_semidefinite": true,
+    "passed": true
+  }
+}

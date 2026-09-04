@@ -1,0 +1,14 @@
+artifact_uri: file:///home/tingfu/projects/csi500-research/mlruns/157700530668260512/7b99561d147e47628ae978814b0aed2a/artifacts
+end_time: 1788351712999
+entry_point_name: ''
+experiment_id: '157700530668260512'
+lifecycle_stage: active
+run_id: 7b99561d147e47628ae978814b0aed2a
+run_name: mlflow_recorder
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1788351666216
+status: 3
+tags: []
+user_id: tingfu
