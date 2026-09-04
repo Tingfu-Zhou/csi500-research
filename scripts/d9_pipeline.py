@@ -181,8 +181,8 @@ def verify_frozen_repository(config: dict) -> dict[str, object]:
     tracked_status = git_output("status", "--porcelain", "--untracked-files=no")
     if tracked_status:
         raise OOSIntegrityError("运行 D9 前已跟踪文件必须无本地未提交改动")
-    changed_text = git_output("diff", "--name-only", f"{expected}..HEAD")
-    changed = sorted(filter(None, changed_text.splitlines()))
+    changed_text = git_output("diff", "--name-only", "-z", f"{expected}..HEAD")
+    changed = sorted(filter(None, changed_text.split("\0")))
     allowed = sorted(str(value) for value in d9["allowed_changes_since_freeze"])
     unexpected = sorted(set(changed) - set(allowed))
     if unexpected:
