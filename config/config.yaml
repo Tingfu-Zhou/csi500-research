@@ -199,6 +199,34 @@ d8:
   layer6_target_match_tolerance: 1.0e-10
   return_annualization_factor: 252
 
+d9:
+  frozen_oos_commit: 14cf2dda745840b8bfd614b504b39b1ef66617e0
+  required_branch: d9
+  processed_oos_dir: data/processed/oos
+  run_manifest: reports/d9_run_manifest.json
+  expected_fold_count: 8
+  main_capital_cny: 10000000
+  newey_west_lags:
+    - 3
+    - 4
+    - 5
+    - 6
+  newey_west_decision_rule: minimum_across_configured_lags
+  impact_stress_multiplier: 2.0
+  allowed_changes_since_freeze:
+    - config/config.yaml
+    - src/d9_core.py
+    - scripts/d9_pipeline.py
+    - tests/test_d9_core.py
+    - D9运行说明.md
+  thresholds:
+    annualized_excess_return_min: 0.035
+    information_ratio_min: 0.75
+    newey_west_t_min: 2.0
+    maximum_relative_drawdown_max: 0.10
+    specific_contribution_share_min: 0.50
+    doubled_impact_annualized_excess_min: 0.0
+
 industry:
   classification: sw_level1
   pit: false
