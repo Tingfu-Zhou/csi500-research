@@ -1912,6 +1912,14 @@ def main() -> None:
         )
     if args.resume_membership_recovery:
         recovery = repository["membership_recovery"]
+        access = ResearchDataAccess(ROOT)
+        calendar = load_open_calendar(
+            access, config, end_date=config["windows"]["oos_end"]
+        )
+        membership_metadata_audit = validate_benchmark_membership_metadata(
+            access, config, calendar
+        )
+        recovery["membership_metadata_preflight"] = membership_metadata_audit
         manifest_path = ROOT / config["d9"]["membership_recovery"][
             "recovery_manifest"
         ]
@@ -1935,6 +1943,7 @@ def main() -> None:
             "performance_observed_before_original_failure": False,
             "model_or_threshold_parameters_changed": False,
             "original_manifest_preserved": True,
+            "membership_metadata_preflight": membership_metadata_audit,
             "oos_start": config["windows"]["oos_start"],
             "oos_end": config["windows"]["oos_end"],
             "message": "同一次统计性 OOS 的受控工程恢复已启动；不得再次恢复",
