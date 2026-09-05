@@ -63,6 +63,10 @@ def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, mon
             market.loc[pick(names[5], dates), ["close", "vwap"]] /= 8
             market[["close", "vwap"]] = market[["close", "vwap"]].astype("float32")
             market = market.loc[~pick(names[0], dates[4:7])].reset_index(drop=True)
+            # an index member Qlib cannot price at all, as when a merger ends a
+            # listing: it keeps its benchmark weight and exposures but has no
+            # return, so it can be neither regressed nor attributed
+            market = market.loc[market.instrument.ne(names[3])].reset_index(drop=True)
         ideal = make_ideal_execution_market(market, fallback_daily_amount=50_000_000.)
         weights = pd.DataFrame([{"trade_date": d, "instrument": name, "weight": 1 / n} for d in dates for name in names])
         exposure = weights.rename(columns={"weight": "benchmark_weight"}).copy()
@@ -75,6 +79,9 @@ def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, mon
         target = pd.DataFrame([{"signal_date": d, "execution_date": dates[t + 1], "instrument": name,
             "target_weight": (2 / n) * (i % 2 == (t // 3) % 2)}
             for t, d in enumerate(dates) if t % 3 == 0 for i, name in enumerate(names)])
+        if hostile:  # the optimizer cannot target a name it has no price for
+            target = target.loc[target.instrument.ne(names[3])].reset_index(drop=True)
+            target["target_weight"] /= target.groupby("signal_date").target_weight.transform("sum")
         targets = {i: target.copy() for i in range(7)}
         schedule = target[["signal_date", "execution_date"]].drop_duplicates().set_index("signal_date").execution_date
         refs = build_frozen_d7_pretrade_path(target, exposure, schedule.index, schedule,
@@ -116,10 +123,21 @@ def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, mon
     hashes = {str(p): sha256(p) for p in reports.iterdir()}
     monkeypatch.setattr(pipeline, "load_window", lambda access, cfg, window, output: windows[window])
     output = D10Output(tmp_path, "integration_v1")
-    summary, ladder = pipeline.run_diagnostics(
-        ResearchDataAccess(tmp_path), config, output, pipeline.ReconciliationLedger(collect=True))
+    ledger = pipeline.ReconciliationLedger(collect=True)
+    summary, ladder = pipeline.run_diagnostics(ResearchDataAccess(tmp_path), config, output, ledger)
     assert len(ladder) == 28
     assert summary["reconciliation"]["clean"] and summary["diagnostic_acceptance"]["accounting_reconciled"]
+    if hostile:
+        # the unpriceable member never enters the fit or the basket, and the
+        # closure identity is unaffected because it leaves both together
+        assert all(a["days_with_unobservable_constituents"] > 0 for a in summary["attribution"].values())
+        assert all(a["maximum_unobservable_benchmark_weight"] > 0 for a in summary["attribution"].values())
+        # The closure identity held (attribute_executed_path enforces it per day),
+        # but the three-block residual acceptance legitimately fails here: this
+        # fixture makes 1/12 of the index unpriceable, so that much of the index
+        # return lands in the official bridge. The disclosure fields are what let
+        # a reader size that effect instead of discovering it as a bare False.
+        assert not any(a["three_block_residual_passed"] for a in summary["attribution"].values())
     assert len(summary["ladder2_comparisons"]) == 4
     assert set(summary["attribution"]) == {"design", "oos"}
     assert len(summary["stress_scenarios"]) == 3

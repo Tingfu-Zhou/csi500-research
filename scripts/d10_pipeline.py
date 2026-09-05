@@ -524,6 +524,9 @@ def write_report(summary, ladder, output):
     for window, r in summary["attribution"].items():
         share = r["specific_share_net"]
         lines.append(f"- {window}：费后特异性占比 {'未定义（超额非正）' if share is None else format(share, '.2%')}；三块残差年化平均绝对值 {r['annualized_mean_absolute_three_block_residual']:.3%}；最差日历年 {r['maximum_calendar_year_annualized_absolute_residual']:.3%}；残差验收 {r['three_block_residual_passed']}。")
+        lines.append(f"- {window}：指数成分中当日无法定价者出现于 {r['days_with_unobservable_constituents']} 天，"
+                     f"基准权重最大 {r['maximum_unobservable_benchmark_weight']:.4%}、平均 {r['mean_unobservable_benchmark_weight']:.4%}。"
+                     "这类成分同时退出回归拟合、贡献分解与指数篮子重建，恒等式不受影响，其指数效应留在官方指数桥接里，不计入特异性。")
         lines += ["", f"![{window} monthly attribution]({window}_attribution_monthly.png)", ""]
     lines += ["特异性净贡献为 WLS 个股残差减去明确披露的真实交易费用；费用前残差也单列。官方指数桥接、未覆盖股票/行业和陈旧暴露的贡献独立披露，不塞进特异性 alpha。", "", "## 压力测试", "",
               "| 情景 | 月度年化超额 | IR | 最大相对回撤 |", "|---|---:|---:|---:|"]

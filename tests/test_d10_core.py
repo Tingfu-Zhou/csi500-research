@@ -352,6 +352,33 @@ def test_attribution_reconciles_and_keeps_official_index_bridge_out_of_specific(
     assert monthly.three_block_residual.abs().sum() > 0
 
 
+def test_unpriceable_index_member_leaves_fit_and_basket_together():
+    """A constituent Qlib cannot price — a merger ending a listing, say.
+
+    It cannot be regressed or attributed. Removing it from the fitted universe
+    AND from the basket reconstruction cancels exactly in the closure identity,
+    so its index effect stays inside the official-index bridge instead of being
+    absorbed into specific alpha. The weight it takes with it is disclosed.
+    """
+    market, targets, model, _, _, exposures = synthetic_case()
+    priced = market.loc[market.instrument.ne("S00")].reset_index(drop=True)
+    result = run_vwap_backtest(priced, targets, 10_000., model)
+    dates = sorted(priced.trade_date.unique())
+    _, daily = summarize_backtest_performance(result.nav, pd.DataFrame({"trade_date": dates, "close": 100.}), initial_capital=10_000.)
+    path = reconstruct_executed_path(daily, result.trades, priced, 10_000., model,
+                                     ReconciliationLedger(collect=True))
+    args = (["industry_A", "industry_B", "industry_absent"], ["style_Size", "style_Beta"])
+    attributed, _, _, audit, summary = attribute_executed_path(daily, path, priced, exposures, *args)
+    # S00 keeps its benchmark weight and its exposures, but has no return at all
+    assert "S00" in exposures.instrument.tolist()
+    assert summary["days_with_unobservable_constituents"] == len(attributed)
+    assert summary["maximum_unobservable_benchmark_weight"] > 0
+    assert audit.unobservable_stocks.gt(0).all()
+    # the closure still holds exactly, which is the whole point of removing it twice
+    assert attributed.accounting_residual.abs().max() < 1e-12
+    assert attributed.unobservable_benchmark_weight.gt(0).all()
+
+
 def test_future_exposure_perturbation_cannot_change_earlier_attribution():
     market, _, model, result, daily, exposures = synthetic_case()
     path = reconstruct_executed_path(daily, result.trades, market, 10_000, model)

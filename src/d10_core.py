@@ -504,18 +504,36 @@ def attribute_executed_path(daily, path, market, exposures, industries, styles):
         supported = latest.loc[identified, ind_active].sum(axis=1).gt(0.5)
         unseen = unseen.union(identified[~supported]); identified = identified[supported]
         contrib = {"industry": 0.0, "style": 0.0, "specific_gross": 0.0}
-        stale_l1, stale_pnl, unmodelled = 0.0, 0.0, 0.0
+        stale_l1, stale_pnl, unmodelled, blind_weight = 0.0, 0.0, 0.0, 0.0
+        touched = fit.index.union(identified).union(unseen)
         for period, returns, weights in [("close_to_close", cc.loc[date], active),
                                           ("execution_to_close", intraday.loc[date], tw)]:
             if period == "execution_to_close" and not (weights.abs() > 1e-14).any():
                 continue
-            f, audit = wls_cross_section(fit, returns, industries, styles)
-            fits.append({"trade_date": date, "exposure_date": lag, "period": period, **audit})
+            # A constituent whose return is unobservable this period -- a name the
+            # index still carries while Qlib has no bar for it, as when a merger
+            # ends its listing -- cannot be regressed or attributed. Dropping it is
+            # disclosed, not silent: it leaves the fitted universe, the contribution
+            # buckets AND the basket reconstruction together. Those two removals
+            # cancel exactly in the closure identity below, so its true index
+            # contribution stays inside the official-index bridge, which is never
+            # relabelled as stock-specific alpha. A name the PORTFOLIO holds must
+            # have a return; that remains fatal.
+            missing = returns.reindex(touched)
+            blind = missing.index[missing.isna()]
+            held_now = path.beginning_weights.loc[date] if period == "close_to_close" else weights
+            if (held_now.reindex(blind, fill_value=0).abs() > 1e-14).any():
+                raise DiagnosticError(f"{date}: missing realized attribution return for a held name")
+            estimable, usable = fit.drop(index=blind, errors="ignore"), identified.difference(blind)
+            f, audit = wls_cross_section(estimable, returns, industries, styles)
+            fits.append({"trade_date": date, "exposure_date": lag, "period": period, **audit,
+                         "unobservable_stocks": int(len(blind)),
+                         "unobservable_benchmark_weight": float(wb.reindex(blind, fill_value=0).sum())})
             factors_rows.extend({"trade_date": date, "exposure_date": lag, "period": period,
                                  "factor": name, "factor_return": float(value)} for name, value in f.items())
-            w = weights.reindex(identified, fill_value=0)
-            x = latest.loc[identified, factor_cols].astype(float)
-            r = returns.reindex(identified)
+            w = weights.reindex(usable, fill_value=0)
+            x = latest.loc[usable, factor_cols].astype(float)
+            r = returns.reindex(usable)
             if r[w.abs() > 1e-14].isna().any():
                 raise DiagnosticError(f"{date}: missing realized attribution return")
             r = r.fillna(0)
@@ -524,14 +542,19 @@ def attribute_executed_path(daily, path, market, exposures, industries, styles):
             contrib["industry"] += float(w @ industry_r)
             contrib["style"] += float(w @ style_r)
             contrib["specific_gross"] += float(w @ (r - industry_r - style_r))
-            stale = pd.to_datetime(latest.loc[identified, "exposure_date"]).lt(lag)
+            stale = pd.to_datetime(latest.loc[usable, "exposure_date"]).lt(lag)
             stale_l1 += float(w[stale].abs().sum()); stale_pnl += float(w[stale] @ r[stale])
-            uw = weights.reindex(unseen, fill_value=0)
-            ur = returns.reindex(unseen)
+            still_unseen = unseen.difference(blind)
+            uw = weights.reindex(still_unseen, fill_value=0)
+            ur = returns.reindex(still_unseen)
             if ur[uw.abs() > 1e-14].isna().any():
                 raise DiagnosticError("unmodelled holding also lacks realized price")
             unmodelled += float(uw @ ur.fillna(0))
-        basket_return = float(wb @ cc.loc[date].reindex(wb.index))
+            blind_weight += float(weights.reindex(blind, fill_value=0).abs().sum())
+        daily_cc = cc.loc[date].reindex(wb.index)
+        observable = daily_cc.notna()
+        basket_return = float(wb[observable] @ daily_cc[observable])
+        unobservable_benchmark_weight = float(wb[~observable].sum())
         bridge = basket_return - float(row.benchmark_return)
         cost = float(accounting.loc[date, "cost_return"])
         specific_net = contrib["specific_gross"] - cost
@@ -543,6 +566,8 @@ def attribute_executed_path(daily, path, market, exposures, industries, styles):
             "portfolio_return": row.portfolio_return, "benchmark_return": row.benchmark_return,
             "excess_return": actual, **contrib, "cost": -cost, "specific_net": specific_net,
             "benchmark_bridge": bridge, "unmodelled_bridge": unmodelled,
+            "unobservable_benchmark_weight": unobservable_benchmark_weight,
+            "unobservable_attribution_weight_l1": blind_weight,
             "accounting_residual": remainder, "three_block_residual": actual - explained,
             "stale_exposure_l1": stale_l1, "stale_exposure_pnl": stale_pnl})
     output = pd.DataFrame(rows)
@@ -565,6 +590,13 @@ def attribute_executed_path(daily, path, market, exposures, industries, styles):
         "maximum_calendar_year_annualized_absolute_residual": annual_year_max,
         "three_block_residual_passed": bool(annual_abs_residual < .005 and annual_year_max < .005),
         "maximum_stale_exposure_l1": float(output.stale_exposure_l1.max()),
+        # Index members Qlib cannot price on a given day. They leave the fit, the
+        # contributions and the basket together, so the closure is untouched and
+        # their index effect stays inside the official-index bridge -- disclosed
+        # here rather than absorbed into specific alpha.
+        "days_with_unobservable_constituents": int(output.unobservable_benchmark_weight.gt(0).sum()),
+        "maximum_unobservable_benchmark_weight": float(output.unobservable_benchmark_weight.max()),
+        "mean_unobservable_benchmark_weight": float(output.unobservable_benchmark_weight.mean()),
         "decision": "No-Go", "decision_changed": False}
     return output, monthly, pd.DataFrame(factors_rows), pd.DataFrame(fits), result
 
