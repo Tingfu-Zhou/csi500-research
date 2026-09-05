@@ -257,7 +257,15 @@ def diagnose_layer(window, layer, capital, inputs, daily, trades, path, previous
     metrics = {"window": window, "layer": layer, "capital": capital, **path_gross_net(daily, capital),
         "target_reference": detail.target_reference.iloc[0], "signals": len(detail),
         "maximum_nav_error_cny": float(path.daily.nav_error_cny.max()),
-        "maximum_accounting_residual": float(path.daily.accounting_residual.abs().max())}
+        "maximum_accounting_residual": float(path.daily.accounting_residual.abs().max()),
+        # Frozen D3 artefact, kept visible rather than absorbed: a full exit can
+        # leave a negative dust position, and the sell leg then books a positive
+        # fill of that dust. Economically nil, but it is not nothing.
+        "negative_position_dust_fills": int(path.orders.negative_position_dust_fill.sum()),
+        "most_negative_pretrade_position_cny": float(path.orders.pretrade_position_cny.min()),
+        "largest_dust_fill_cny": float(
+            path.orders.loc[path.orders.negative_position_dust_fill, "executed_trade_amount"].abs().max()
+            if path.orders.negative_position_dust_fill.any() else 0.0)}
     for column in detail.select_dtypes(include="number").columns:
         if column in {"layer", "capital"} or not detail[column].notna().any():
             continue

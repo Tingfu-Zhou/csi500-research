@@ -9,12 +9,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.d3_core import CostModel, run_vwap_backtest
+from src.d3_core import CostModel, match_target_orders, run_vwap_backtest, trade_cost
 from src.d4_core import build_forward_excess_labels
 from src.d8_core import summarize_backtest_performance
 from src.d10_core import (DiagnosticError, align_stress_daily, attribute_executed_path,
     executed_turnover_split, half_l1, linked_monthly, path_gross_net, price_panels,
-    reconstruct_executed_path, require_close, stress_schedule, turnover_split, wls_cross_section)
+    reconstruct_executed_path, require_close, stress_schedule, tradable_fill_range,
+    turnover_split, wls_cross_section)
 from src.d10_io import (D10Output, assert_snapshot_unchanged, git_blob, snapshot_inputs, verify_repository)
 
 
@@ -79,6 +80,65 @@ def test_corrupted_order_cost_is_detected_independently_of_nav():
     market, _, model, result, daily, _ = synthetic_case()
     result.trades.loc[0, "stamp_duty_cost"] += 1
     with pytest.raises(DiagnosticError, match="stamp_duty_cost"):
+        reconstruct_executed_path(daily, result.trades, market, 10_000, model)
+
+
+def test_negative_dust_position_fills_through_the_sell_leg_not_a_forbidden_buy():
+    """D3 gates legs, not the sign of the net fill.
+
+    A full exit books back (units*price)/price, which in float64 can overshoot
+    and leave a negative unit residue above the 1e-12 prune. On a later
+    rebalance the sell leg is clipped UP TO that negative position, so -0.0
+    becomes a positive, buy-direction fill of the dust that can_sell allowed.
+    Reading the leg off the sign reports a forbidden buy that never happened.
+    """
+    model = CostModel(.00015, .00001, ((pd.Timestamp("1900-01-01"), pd.Timestamp("2100-01-01"), .001)), .5, .05)
+    names = ["BLOCKED", "OPEN"]
+    quotes = pd.DataFrame({"execution_price": [10., 10.], "daily_amount_cny": [6e7, 6e7],
+        "volatility": [.015, .015], "can_buy": [False, True], "can_sell": [True, True]}, index=names)
+    dust = -1.403375e-11
+    result = match_target_orders(pd.Series({"BLOCKED": dust, "OPEN": 100_000.}), 9_900_000.,
+                                 pd.Series({"BLOCKED": .01, "OPEN": .01}), quotes,
+                                 pd.Timestamp("2017-02-13"), model)
+    order = result.trades.set_index("instrument").loc["BLOCKED"]
+    assert order.executed_trade_amount == -dust > 0 and not order.can_buy and order.blocked_by_tradability
+    low, high = tradable_fill_range(order.desired_trade_amount, dust, 6e7, False, True, .05)
+    assert low == high == -dust
+    # The same order against a clean zero position may not fill at all.
+    assert tradable_fill_range(order.desired_trade_amount, 0., 6e7, False, True, .05) == (0., 0.)
+
+
+def test_fill_range_still_refuses_forbidden_and_oversized_fills():
+    assert tradable_fill_range(50_000., 0., 6e7, False, True, .05) == (0., 0.)
+    assert tradable_fill_range(-50_000., 50_000., 6e7, True, False, .05) == (0., 0.)
+    # a sell is pinned to one point; a buy may be scaled down by the cash sweep
+    assert tradable_fill_range(-50_000., 50_000., 6e7, True, True, .05) == (-50_000., -50_000.)
+    assert tradable_fill_range(50_000., 0., 6e7, True, True, .05) == (0., 50_000.)
+    # participation caps the buy leg at 5% of the day's amount
+    assert tradable_fill_range(5e6, 0., 6e7, True, True, .05) == (0., 3e6)
+    # a sell can never exceed the position it is clipped to
+    assert tradable_fill_range(-90_000., 40_000., 6e7, True, True, .05) == (-40_000., -40_000.)
+
+
+def test_overfilled_order_beyond_the_leg_range_fails_closed():
+    """Cost-consistent inflation: only the leg range can catch this one."""
+    market, _, model, result, daily, _ = synthetic_case()
+    traded = result.trades.executed_trade_amount.abs().idxmax()
+    row = result.trades.loc[traded]
+    quote = market.loc[market.trade_date.eq(row.execution_date) & market.instrument.eq(row.instrument)].iloc[0]
+    inflated = float(row.executed_trade_amount) * 1.5
+    result.trades.loc[traded, "executed_trade_amount"] = inflated
+    for field, value in trade_cost(inflated, quote.volatility, quote.daily_amount_cny,
+                                   row.execution_date, model).items():
+        result.trades.loc[traded, field] = value
+    with pytest.raises(DiagnosticError, match="outside the tradable leg range"):
+        reconstruct_executed_path(daily, result.trades, market, 10_000, model)
+
+
+def test_corrupted_blocked_flag_fails_closed():
+    market, _, model, result, daily, _ = synthetic_case()
+    result.trades.loc[0, "blocked_by_tradability"] = not result.trades.loc[0, "blocked_by_tradability"]
+    with pytest.raises(DiagnosticError, match="blocked_by_tradability"):
         reconstruct_executed_path(daily, result.trades, market, 10_000, model)
 
 

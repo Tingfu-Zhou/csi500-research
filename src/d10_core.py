@@ -58,6 +58,33 @@ def price_panels(market):
             vwap.combine_first(close).combine_first(previous_close))
 
 
+def tradable_fill_range(desired, position, daily_amount, can_buy, can_sell, participation_limit):
+    """The closed interval of net fills D3's matcher could have produced.
+
+    D3 gates each LEG, never the sign of the net fill:
+
+        sells          = (-desired.clip(upper=0)).clip(upper=positions)
+        executable     = sells.where(can_sell, 0).clip(upper=capacity)
+        candidate_buys = desired.clip(lower=0).where(can_buy, 0).clip(upper=capacity)
+        executed       = candidate_buys * cash_scale - executable,  cash_scale in [0, 1]
+
+    Clipping the sell leg UP TO the pretrade position is why the sign is not the
+    leg. A full exit sells units*price and books back (units*price)/price, which
+    in float64 can overshoot; `units.where(units.abs() > 1e-12)` keeps the
+    negative residue, and on a later rebalance that name carries a position of
+    about -1e-11 CNY. Clipping -0.0 up to a negative position yields a negative
+    sell, so `-executable` is a positive, BUY-DIRECTION fill of the dust that the
+    SELL leg produced and can_sell allowed -- with can_buy false throughout.
+    Reading the leg off the sign calls that a forbidden buy; reconstructing both
+    legs prices it exactly, and also bounds capacity and cash scaling.
+    """
+    capacity = float(daily_amount) * float(participation_limit) if float(daily_amount) > 0 else 0.0
+    sell_leg = min(max(-desired, 0.0), position)
+    executed_sell = min(sell_leg if can_sell else 0.0, capacity)
+    candidate_buy = min(max(desired, 0.0) if can_buy else 0.0, capacity)
+    return -executed_sell, -executed_sell + candidate_buy
+
+
 @dataclass
 class ExecutedPath:
     daily: pd.DataFrame
@@ -122,6 +149,9 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
                 raise DiagnosticError("execution price absent for actual trade")
             require_close(g.desired_trade_amount,
                           g.target_weight * pre_nav - values.reindex(g.index), f"{date}: desired notional", atol=1e-5)
+            # The pretrade-weight check above already bounds how far a rebuilt
+            # position may sit from D3's own; reuse that budget, do not invent one.
+            position_budget = max(1e-5, 2e-9 * pre_nav)
             for name, order in g.iterrows():
                 quote = market_days[date].loc[name]
                 calculated = trade_cost(order.executed_trade_amount, quote.volatility,
@@ -129,21 +159,32 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
                 max_error = max(require_close([order[k]], [v], f"{date}/{name}/{k}", atol=1e-5)
                                 for k, v in calculated.items())
                 signed_amount = float(order.executed_trade_amount)
-                allowed = bool(quote.can_buy) if signed_amount > 0 else bool(quote.can_sell)
-                if signed_amount != 0 and not allowed:
-                    raise DiagnosticError(f"{date}/{name}: logged trade violates execution-day state")
-                if bool(order.blocked_by_tradability) and signed_amount != 0:
-                    raise DiagnosticError("blocked order changed actual holdings")
+                position = float(values.get(name, 0.0))
+                low, high = tradable_fill_range(float(order.desired_trade_amount), position,
+                                                float(quote.daily_amount_cny), bool(quote.can_buy),
+                                                bool(quote.can_sell), cost_model.participation_limit)
+                if not low - position_budget <= signed_amount <= high + position_budget:
+                    raise DiagnosticError(
+                        f"{date}/{name}: fill {signed_amount:.12g} outside the tradable leg range "
+                        f"[{low:.12g}, {high:.12g}]; can_buy={bool(quote.can_buy)} "
+                        f"can_sell={bool(quote.can_sell)} pretrade position {position:.12g}")
+                desired_amount = float(order.desired_trade_amount)
+                side_allowed = (bool(quote.can_buy) if desired_amount > 0
+                                else bool(quote.can_sell) if desired_amount < 0 else True)
+                if bool(order.blocked_by_tradability) != bool(desired_amount and not side_allowed):
+                    raise DiagnosticError(f"{date}/{name}: saved blocked_by_tradability disagrees with input")
                 expected_buy = bool(quote.can_buy) and pd.notna(ep.loc[name])
                 expected_sell = bool(quote.can_sell) and pd.notna(ep.loc[name])
                 if bool(order.can_buy) != expected_buy or bool(order.can_sell) != expected_sell:
                     raise DiagnosticError(f"{date}/{name}: saved tradability disagrees with input")
                 order_rows.append({"execution_date": date, "signal_date": signal, "instrument": name,
-                    "executed_trade_amount": signed_amount, "desired_trade_amount": float(order.desired_trade_amount),
+                    "executed_trade_amount": signed_amount, "desired_trade_amount": desired_amount,
                     "total_cost": float(order.total_cost), "cost_reconciliation_error_cny": max_error,
                     "blocked_by_tradability": bool(order.blocked_by_tradability),
                     "participation_limited": bool(order.participation_limited),
                     "cash_limited": bool(order.cash_limited),
+                    "pretrade_position_cny": position,
+                    "negative_position_dust_fill": bool(position < 0 and signed_amount != 0),
                     "post_execution_pnl_cny": float(signed_amount * (mp.loc[name] / ep.loc[name] - 1))
                         if signed_amount else 0.0})
             delta = signed[nonzero] / ep.reindex(signed.index[nonzero])
