@@ -408,6 +408,104 @@ def assert_design_weight_parity(full_weights: pd.DataFrame, config: dict) -> Non
     )
 
 
+def validate_benchmark_membership_metadata(
+    access: ResearchDataAccess,
+    config: dict,
+    calendar: pd.DatetimeIndex,
+) -> dict[str, object]:
+    """Prove observed and synthetic membership sets before reading any prices."""
+
+    windows = config["windows"]
+    design_start = pd.Timestamp(windows["design_start"])
+    oos_end = pd.Timestamp(windows["oos_end"])
+    raw = Path(config["data"]["tushare_raw_dir"])
+    frozen_replacements = config["universe"].get("membership_replacements", [])
+    recovery = config["d9"].get("membership_recovery", {})
+    recovery_replacements = recovery.get("membership_replacements", [])
+    replacements = [*frozen_replacements, *recovery_replacements]
+
+    intervals = load_intervals(config, oos_end)
+    intervals, _ = apply_membership_replacements(intervals, frozen_replacements)
+    intervals, _ = apply_membership_replacements(intervals, recovery_replacements)
+    intervals, alias_audit = apply_identifier_alias_removals(
+        intervals, recovery.get("identifier_alias_removals", [])
+    )
+    source = access.read_parquet(
+        raw / "index_weight_000905_SH.parquet",
+        date_col="trade_date",
+        end_date=oos_end,
+    )
+    source["trade_date"] = parse_date_series(source["trade_date"])
+    source["instrument"] = source["con_code"].map(to_qlib_symbol)
+    source["weight"] = pd.to_numeric(source["weight"], errors="raise")
+    snapshots = normalize_snapshots(
+        source[["trade_date", "instrument", "weight"]].drop_duplicates()
+    )
+    snapshots["snapshot_origin"] = "tushare_index_weight"
+    bootstrap = snapshots.loc[
+        snapshots["trade_date"].le(design_start), "trade_date"
+    ].max()
+    if pd.isna(bootstrap):
+        raise ValueError("D9 缺少设计窗口前的启动权重快照")
+    weight_calendar = calendar[
+        (calendar >= pd.Timestamp(bootstrap)) & (calendar <= oos_end)
+    ]
+    membership = expand_membership(intervals, weight_calendar)
+    snapshots = snapshots.loc[
+        snapshots["trade_date"].between(weight_calendar.min(), oos_end)
+    ].copy()
+    observed_audit = compare_snapshot_membership(membership, snapshots)
+    observed_mismatches = int(observed_audit["status"].ne("ok").sum())
+    if observed_mismatches:
+        raise ValueError(
+            f"受控恢复后仍有 {observed_mismatches} 个真实权重快照日不一致"
+        )
+
+    synthetic: list[pd.DataFrame] = []
+    synthetic_dates: list[pd.Timestamp] = []
+    for number, replacement in enumerate(replacements, start=1):
+        effective = pd.Timestamp(replacement["effective_start"]).normalize()
+        anchor = pd.Timestamp(replacement["anchor_snapshot_date"]).normalize()
+        outgoing = str(replacement["remove_instrument"]).upper()
+        incoming = str(replacement["add_instrument"]).upper()
+        if snapshots["trade_date"].eq(effective).any():
+            raise ValueError(f"{effective.date()} 已有真实权重快照，无需反推")
+        anchor_rows = snapshots.loc[snapshots["trade_date"].eq(anchor)].copy()
+        anchor_set = set(anchor_rows["instrument"].astype(str))
+        if not anchor_set or incoming not in anchor_set or outgoing in anchor_set:
+            raise ValueError(f"第 {number} 条修正的锚点快照与方向不一致")
+        anchor_rows["trade_date"] = effective
+        anchor_rows["snapshot_origin"] = "backcast_membership_correction"
+        synthetic.append(anchor_rows)
+        synthetic_dates.append(effective)
+    metadata_snapshots = pd.concat([snapshots, *synthetic], ignore_index=True)
+    metadata_snapshots, bridge_audit = apply_snapshot_instrument_bridges(
+        metadata_snapshots,
+        recovery.get("synthetic_snapshot_bridges", []),
+    )
+    synthetic_audit = compare_snapshot_membership(
+        membership,
+        metadata_snapshots.loc[
+            metadata_snapshots["trade_date"].isin(synthetic_dates)
+        ],
+    )
+    synthetic_mismatches = int(synthetic_audit["status"].ne("ok").sum())
+    if synthetic_mismatches:
+        raise ValueError(
+            f"受控恢复后仍有 {synthetic_mismatches} 个合成调样日不一致"
+        )
+    return {
+        "prices_or_returns_read": False,
+        "observed_snapshot_dates": int(len(observed_audit)),
+        "observed_snapshot_mismatch_days": observed_mismatches,
+        "synthetic_event_dates": int(len(synthetic_audit)),
+        "synthetic_event_mismatch_days": synthetic_mismatches,
+        "identifier_alias_rules": int(len(alias_audit)),
+        "synthetic_snapshot_bridges": int(len(bridge_audit)),
+        "passed": True,
+    }
+
+
 def build_full_benchmark_weights(
     access: ResearchDataAccess,
     config: dict,
@@ -1783,10 +1881,25 @@ def main() -> None:
         return
     if args.recovery_preflight:
         recovery = repository["membership_recovery"]
+        if repository["window_mode"] != "oos":
+            raise OOSIntegrityError("受控恢复预检要求 OOS 数据保持已解封状态")
+        access = ResearchDataAccess(ROOT)
+        calendar = load_open_calendar(
+            access, config, end_date=config["windows"]["oos_end"]
+        )
+        membership_audit = validate_benchmark_membership_metadata(
+            access, config, calendar
+        )
         print("D9 成分元数据受控恢复预检：通过")
         print(f"当前窗口模式：{repository['window_mode']}")
         print(f"原失败清单 SHA256：{recovery['original_manifest_sha256']}")
         print("原失败发生在收益读取、模型训练与绩效生成之前：是")
+        print(
+            "真实快照不一致日："
+            f"{membership_audit['observed_snapshot_mismatch_days']}；"
+            "合成调样日不一致："
+            f"{membership_audit['synthetic_event_mismatch_days']}"
+        )
         print(
             "下一步：python scripts/d9_pipeline.py "
             "--resume-membership-recovery --confirm "
