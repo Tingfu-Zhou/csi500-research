@@ -38,10 +38,20 @@ def price_panels(market):
 
     Input must start at the ORIGINAL backtest start, not at a warmup date.
     A prior VWAP without a close is not a valid last-close fallback.
+
+    Qlib serves prices as float32, and D3 widens every quote to float64 before
+    it computes anything (_coalesce_numeric_series). The panels must widen the
+    same way: `mark / execution - 1` and `mark / mark.shift(1) - 1` cancel a
+    ratio near 1.0, so in float32 a half-ULP of the quotient (~6e-8) survives
+    as roughly 1e-5 of the return itself. Priced against a rebalance notional
+    that is a large multiple of NAV, that lands as a ~1e-9 fraction of NAV in
+    the intraday PnL, while NAV itself stays exact -- reconciliation against
+    the frozen D3 ledger then fails on the derived identity only.
     """
     unique_frame(market, ["trade_date", "instrument"], "market")
     close = market.pivot(index="trade_date", columns="instrument", values="close").sort_index()
     vwap = market.pivot(index="trade_date", columns="instrument", values="vwap").reindex_like(close)
+    close, vwap = close.astype("float64"), vwap.astype("float64")
     close, vwap = close.where(close > 0), vwap.where(vwap > 0)
     previous_close = close.ffill().shift(1)
     return (close.combine_first(vwap).combine_first(previous_close),
@@ -105,13 +115,13 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
             live = values / pre_nav
             pretrade[signal] = live[live.abs() > 0].copy()
             pretrade[signal].loc["CASH"] = cash / pre_nav
-            require_close(g.pretrade_weight, live.reindex(g.index), "logged pretrade weights")
+            require_close(g.pretrade_weight, live.reindex(g.index), f"{date}: logged pretrade weights")
             signed = g.executed_trade_amount.astype(float)
             nonzero = signed.ne(0)
             if ep.reindex(g.index[nonzero]).isna().any():
                 raise DiagnosticError("execution price absent for actual trade")
             require_close(g.desired_trade_amount,
-                          g.target_weight * pre_nav - values.reindex(g.index), "desired notional", atol=1e-5)
+                          g.target_weight * pre_nav - values.reindex(g.index), f"{date}: desired notional", atol=1e-5)
             for name, order in g.iterrows():
                 quote = market_days[date].loc[name]
                 calculated = trade_cost(order.executed_trade_amount, quote.volatility,
@@ -152,12 +162,12 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
         nav = float(cash + (units * mp.fillna(0)).sum())
         nav_error = require_close([nav], [row.nav], f"{date}: NAV", atol=1e-4)
         require_close([cash], [row.cash], f"{date}: cash", atol=1e-4)
-        require_close([costs], [row.transaction_cost], "daily costs", atol=1e-4)
-        require_close([turnover], [row.single_sided_turnover], "executed turnover")
+        require_close([costs], [row.transaction_cost], f"{date}: daily costs", atol=1e-4)
+        require_close([turnover], [row.single_sided_turnover], f"{date}: executed turnover")
         actual_return = float(row.nav / prev_nav - 1)
-        require_close([actual_return], [row.portfolio_return], "saved daily return")
+        require_close([actual_return], [row.portfolio_return], f"{date}: saved daily return")
         pnl_return = (old_pnl + trade_pnl - costs) / prev_nav
-        require_close([pnl_return], [actual_return], "holding + intraday - costs")
+        require_close([pnl_return], [actual_return], f"{date}: holding + intraday - costs")
         begin.append(bw.to_numpy()); changes.append(tw.to_numpy())
         end.append((units * mp.fillna(0) / nav).to_numpy())
         rows.append({"trade_date": date, "previous_nav": prev_nav,

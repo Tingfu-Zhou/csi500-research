@@ -94,6 +94,40 @@ def test_mark_fallback_uses_last_close_never_future_or_last_vwap():
     pd.testing.assert_frame_equal(mark.iloc[:3], changed.iloc[:3])
 
 
+def test_float32_qlib_prices_do_not_leak_into_reconstructed_returns():
+    """Qlib serves float32 quotes; mark/execution ratios must be widened first.
+
+    In float32 the near-1.0 quotient loses ~1e-5 of the intraday return, which
+    prices out as a ~1e-9 fraction of NAV against a full rebalance notional.
+    NAV stays exact either way, so only the derived identity would catch it.
+    """
+    market, targets, model, _, _, _ = synthetic_case()
+    market[["close", "vwap"]] = market[["close", "vwap"]].astype("float32")
+    result = run_vwap_backtest(market, targets, 10_000., model)
+    dates = sorted(market.trade_date.unique())
+    _, daily = summarize_backtest_performance(result.nav, pd.DataFrame({"trade_date": dates, "close": 100.}), initial_capital=10_000.)
+    mark, execution = price_panels(market)
+    assert mark.to_numpy().dtype == np.float64 and execution.to_numpy().dtype == np.float64
+    path = reconstruct_executed_path(daily, result.trades, market, 10_000., model)
+    assert path.daily.accounting_residual.abs().max() < 1e-12
+    widened = market.copy()
+    widened[["close", "vwap"]] = widened[["close", "vwap"]].astype("float64")
+    pd.testing.assert_frame_equal(price_panels(widened)[0], mark)
+    pd.testing.assert_frame_equal(price_panels(widened)[1], execution)
+
+
+def test_float32_qlib_prices_do_not_leak_into_attribution():
+    market, targets, model, _, _, exposures = synthetic_case()
+    market[["close", "vwap"]] = market[["close", "vwap"]].astype("float32")
+    result = run_vwap_backtest(market, targets, 10_000., model)
+    dates = sorted(market.trade_date.unique())
+    _, daily = summarize_backtest_performance(result.nav, pd.DataFrame({"trade_date": dates, "close": 100.}), initial_capital=10_000.)
+    path = reconstruct_executed_path(daily, result.trades, market, 10_000., model)
+    attributed, _, _, _, _ = attribute_executed_path(daily, path, market, exposures,
+        ["industry_A", "industry_B", "industry_absent"], ["style_Size", "style_Beta"])
+    assert attributed.accounting_residual.abs().max() < 1e-12
+
+
 def test_suspension_with_missing_quotes_reconciles_causal_marks():
     market, targets, model, _, _, _ = synthetic_case()
     dates = sorted(market.trade_date.unique())
