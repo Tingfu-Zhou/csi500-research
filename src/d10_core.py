@@ -18,14 +18,58 @@ class DiagnosticError(ValueError):
     pass
 
 
-def require_close(actual, expected, label, *, atol=2e-9, rtol=2e-9):
+def measure_close(actual, expected, label, *, atol=2e-9, rtol=2e-9):
+    """Return (error, message) so a caller can collect instead of stopping."""
     a, b = np.asarray(actual, dtype=float), np.asarray(expected, dtype=float)
     if a.shape != b.shape or not np.all(np.isfinite(a)) or not np.all(np.isfinite(b)):
-        raise DiagnosticError(f"{label}: missing/nonfinite values or shape mismatch")
+        return float("nan"), f"{label}: missing/nonfinite values or shape mismatch"
     error = float(np.max(np.abs(a - b))) if a.size else 0.0
     if not np.allclose(a, b, atol=atol, rtol=rtol):
-        raise DiagnosticError(f"{label}: maximum absolute difference {error:.12g}")
+        return error, f"{label}: maximum absolute difference {error:.12g}"
+    return error, None
+
+
+def require_close(actual, expected, label, *, atol=2e-9, rtol=2e-9):
+    error, message = measure_close(actual, expected, label, atol=atol, rtol=rtol)
+    if message:
+        raise DiagnosticError(message)
     return error
+
+
+class ReconciliationLedger:
+    """Enumerate what disagrees with the frozen ledger, or stop at the first row.
+
+    A diagnostic pass exists to find discrepancies, so stopping at the first one
+    turns a whole run into a single finding. Collecting absorbs nothing: every
+    finding is written out with its window, capital, layer, date and instrument,
+    and one finding anywhere forces diagnostic acceptance to False.
+
+    Only discrepancies are collectable -- ones where the reconstruction can carry
+    on using the ledger's own numbers. A structural failure, where continuing
+    would mean inventing a number (a fill with no execution price, a held name
+    with no mark), still raises no matter what mode this is in.
+    """
+
+    def __init__(self, collect=False):
+        self.collect, self.findings, self.context = collect, [], {}
+
+    def note(self, message, **fields):
+        if not self.collect:
+            raise DiagnosticError(message)
+        self.findings.append({**self.context, **fields, "finding": message})
+
+    def close(self, actual, expected, label, *, atol=2e-9, rtol=2e-9, **fields):
+        error, message = measure_close(actual, expected, label, atol=atol, rtol=rtol)
+        if message:
+            self.note(message, **fields)
+        return error if np.isfinite(error) else 0.0
+
+    def summary(self):
+        frame = pd.DataFrame(self.findings)
+        keys = [c for c in ["window", "capital", "layer"] if c in frame]
+        return {"total": len(self.findings), "clean": not self.findings,
+                "by_group": (frame.groupby(keys).size().reset_index(name="findings").to_dict("records")
+                             if keys and len(frame) else [])}
 
 
 def unique_frame(frame, keys, label):
@@ -75,7 +119,7 @@ def day_quote(market_day, name):
     return quote
 
 
-def assert_long_only(position_values, date, label):
+def assert_long_only(position_values, date, label, ledger=None):
     """D3 states its long-only contract in CURRENCY, so assert it there.
 
     match_target_orders refuses a pretrade position below -1e-8 CNY. A share
@@ -89,7 +133,8 @@ def assert_long_only(position_values, date, label):
     short = position_values[position_values < -1e-8]
     if len(short):
         detail = ", ".join(f"{name}={value:.12g}" for name, value in short.head(5).items())
-        raise DiagnosticError(f"{date}: {label} below D3's -1e-8 CNY long-only contract: {detail}")
+        message = f"{date}: {label} below D3's -1e-8 CNY long-only contract: {detail}"
+        (ledger or ReconciliationLedger()).note(message, date=str(date), kind="long_only")
 
 
 def tradable_fill_range(desired, position, daily_amount, can_buy, can_sell, participation_limit):
@@ -129,13 +174,18 @@ class ExecutedPath:
     orders: pd.DataFrame
 
 
-def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model):
+def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model, ledger=None):
     """Recover units from logged signed notionals; independently reconcile NAV.
 
     beginning_weights use previous close NAV; trade_weights use executed VWAP
     notional / previous close NAV. Pretrade weights use execution-time NAV.
     No desired order, including a blocked order, ever creates units or a fee.
+
+    Pass a collecting ReconciliationLedger to enumerate every discrepancy in one
+    pass; the default stops at the first, which is the stricter behaviour every
+    existing caller and test relies on.
     """
+    ledger = ledger or ReconciliationLedger()
     daily = daily.sort_values("trade_date").copy().reset_index(drop=True)
     unique_frame(daily, ["trade_date"], "daily")
     if not trades.empty and trades.duplicated(["execution_date", "instrument"]).any():
@@ -168,22 +218,42 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
         turnover = 0.0
         g = grouped.get(date)
         if g is not None:
-            if g.index.difference(names).size:
-                raise DiagnosticError("order instruments missing from market")
+            # A target name with no Qlib bar anywhere in the window never enters the
+            # panel, yet D3 still logs an order for it: universe = units | target,
+            # reindex leaves it NaN, both flags go False and nothing fills. It is
+            # unpriceable, so a fill would be unreconstructable -- that stays fatal.
+            absent = g.index.difference(names)
+            # Their fees belong to the day either way; D3 charges none for a zero fill.
+            logged_cost = float(g.total_cost.sum())
+            if absent.size:
+                filled = g.loc[absent, "executed_trade_amount"].astype(float)
+                if filled.ne(0).any():
+                    raise DiagnosticError(f"{date}: filled orders absent from the market panel: "
+                                          + ", ".join(map(str, filled.index[filled.ne(0)][:5])))
+                ledger.note(f"{date}: ordered instruments absent from the market panel: "
+                            + ", ".join(map(str, absent[:5])),
+                            date=str(date), kind="unpriceable_ordered_instrument",
+                            instruments=int(absent.size))
+                g = g.drop(index=absent)
+        if g is not None and g.empty:
+            costs = logged_cost  # every order that day was unpriceable and unfilled
+            g = None
+        if g is not None:
             if g.signal_date.nunique() != 1:
                 raise DiagnosticError("multiple signals on one execution date")
             signal = pd.Timestamp(g.signal_date.iloc[0])
             live = values / pre_nav
             pretrade[signal] = live[live.abs() > 0].copy()
             pretrade[signal].loc["CASH"] = cash / pre_nav
-            assert_long_only(values, date, "pretrade position")
-            require_close(g.pretrade_weight, live.reindex(g.index), f"{date}: logged pretrade weights")
+            assert_long_only(values, date, "pretrade position", ledger)
+            ledger.close(g.pretrade_weight, live.reindex(g.index), f"{date}: logged pretrade weights",
+                         date=str(date), kind="pretrade_weight")
             signed = g.executed_trade_amount.astype(float)
             nonzero = signed.ne(0)
             if ep.reindex(g.index[nonzero]).isna().any():
                 raise DiagnosticError("execution price absent for actual trade")
-            require_close(g.desired_trade_amount,
-                          g.target_weight * pre_nav - values.reindex(g.index), f"{date}: desired notional", atol=1e-5)
+            ledger.close(g.desired_trade_amount, g.target_weight * pre_nav - values.reindex(g.index),
+                         f"{date}: desired notional", atol=1e-5, date=str(date), kind="desired_notional")
             # The pretrade-weight check above already bounds how far a rebuilt
             # position may sit from D3's own; reuse that budget, do not invent one.
             position_budget = max(1e-5, 2e-9 * pre_nav)
@@ -195,7 +265,8 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
                                           f"{float(order.executed_trade_amount):.12g} with no market row that day")
                 calculated = trade_cost(order.executed_trade_amount, quote.volatility,
                                         quote.daily_amount_cny, date, cost_model)
-                max_error = max(require_close([order[k]], [v], f"{date}/{name}/{k}", atol=1e-5)
+                max_error = max(ledger.close([order[k]], [v], f"{date}/{name}/{k}", atol=1e-5,
+                                             date=str(date), instrument=str(name), kind="order_cost")
                                 for k, v in calculated.items())
                 signed_amount = float(order.executed_trade_amount)
                 position = float(values.get(name, 0.0))
@@ -203,19 +274,21 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
                                                 float(quote.daily_amount_cny), bool(quote.can_buy),
                                                 bool(quote.can_sell), cost_model.participation_limit)
                 if not low - position_budget <= signed_amount <= high + position_budget:
-                    raise DiagnosticError(
-                        f"{date}/{name}: fill {signed_amount:.12g} outside the tradable leg range "
-                        f"[{low:.12g}, {high:.12g}]; can_buy={bool(quote.can_buy)} "
-                        f"can_sell={bool(quote.can_sell)} pretrade position {position:.12g}")
+                    ledger.note(f"{date}/{name}: fill {signed_amount:.12g} outside the tradable leg range "
+                                f"[{low:.12g}, {high:.12g}]; can_buy={bool(quote.can_buy)} "
+                                f"can_sell={bool(quote.can_sell)} pretrade position {position:.12g}",
+                                date=str(date), instrument=str(name), kind="tradable_leg_range")
                 desired_amount = float(order.desired_trade_amount)
                 side_allowed = (bool(quote.can_buy) if desired_amount > 0
                                 else bool(quote.can_sell) if desired_amount < 0 else True)
                 if bool(order.blocked_by_tradability) != bool(desired_amount and not side_allowed):
-                    raise DiagnosticError(f"{date}/{name}: saved blocked_by_tradability disagrees with input")
+                    ledger.note(f"{date}/{name}: saved blocked_by_tradability disagrees with input",
+                                date=str(date), instrument=str(name), kind="blocked_flag")
                 expected_buy = bool(quote.can_buy) and pd.notna(ep.loc[name])
                 expected_sell = bool(quote.can_sell) and pd.notna(ep.loc[name])
                 if bool(order.can_buy) != expected_buy or bool(order.can_sell) != expected_sell:
-                    raise DiagnosticError(f"{date}/{name}: saved tradability disagrees with input")
+                    ledger.note(f"{date}/{name}: saved tradability disagrees with input",
+                                date=str(date), instrument=str(name), kind="tradability")
                 order_rows.append({"execution_date": date, "signal_date": signal, "instrument": name,
                     "executed_trade_amount": signed_amount, "desired_trade_amount": desired_amount,
                     "total_cost": float(order.total_cost), "cost_reconciliation_error_cny": max_error,
@@ -230,25 +303,28 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
             units.loc[delta.index] += delta
             units = units.where(units.abs() > 1e-12, 0.0)
             tw.loc[signed.index] = signed / prev_nav
-            costs = float(g.total_cost.sum())
+            costs = logged_cost
             cash -= float(signed.sum()) + costs
             # Same representational tolerance as D3; no economic cash injection.
             if -max(1e-8, pre_nav * 1e-12) <= cash < 0:
                 cash = 0.0
             if cash < 0:
-                raise DiagnosticError(f"{date}: negative reconstructed cash {cash:.12g}")
-            assert_long_only(units * ep.fillna(0), date, "post-trade position")
+                ledger.note(f"{date}: negative reconstructed cash {cash:.12g}",
+                            date=str(date), kind="negative_cash")
+            assert_long_only(units * ep.fillna(0), date, "post-trade position", ledger)
             turnover = 0.5 * float(signed.abs().sum()) / pre_nav
         trade_pnl = float((tw * (mp / ep - 1).fillna(0)).sum()) * prev_nav
         nav = float(cash + (units * mp.fillna(0)).sum())
-        nav_error = require_close([nav], [row.nav], f"{date}: NAV", atol=1e-4)
-        require_close([cash], [row.cash], f"{date}: cash", atol=1e-4)
-        require_close([costs], [row.transaction_cost], f"{date}: daily costs", atol=1e-4)
-        require_close([turnover], [row.single_sided_turnover], f"{date}: executed turnover")
+        day = {"date": str(date)}
+        nav_error = ledger.close([nav], [row.nav], f"{date}: NAV", atol=1e-4, kind="nav", **day)
+        ledger.close([cash], [row.cash], f"{date}: cash", atol=1e-4, kind="cash", **day)
+        ledger.close([costs], [row.transaction_cost], f"{date}: daily costs", atol=1e-4, kind="daily_cost", **day)
+        ledger.close([turnover], [row.single_sided_turnover], f"{date}: executed turnover", kind="turnover", **day)
         actual_return = float(row.nav / prev_nav - 1)
-        require_close([actual_return], [row.portfolio_return], f"{date}: saved daily return")
+        ledger.close([actual_return], [row.portfolio_return], f"{date}: saved daily return", kind="saved_return", **day)
         pnl_return = (old_pnl + trade_pnl - costs) / prev_nav
-        require_close([pnl_return], [actual_return], f"{date}: holding + intraday - costs")
+        ledger.close([pnl_return], [actual_return], f"{date}: holding + intraday - costs",
+                     kind="pnl_identity", **day)
         begin.append(bw.to_numpy()); changes.append(tw.to_numpy())
         end.append((units * mp.fillna(0) / nav).to_numpy())
         rows.append({"trade_date": date, "previous_nav": prev_nav,

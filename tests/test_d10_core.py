@@ -15,7 +15,7 @@ from src.d8_core import summarize_backtest_performance
 from src.d10_core import (DiagnosticError, align_stress_daily, attribute_executed_path,
     executed_turnover_split, half_l1, linked_monthly, path_gross_net, price_panels,
     reconstruct_executed_path, require_close, stress_schedule, tradable_fill_range,
-    assert_long_only, day_quote, turnover_split, wls_cross_section)
+    assert_long_only, day_quote, turnover_split, wls_cross_section, ReconciliationLedger)
 from src.d10_io import (D10Output, assert_snapshot_unchanged, git_blob, snapshot_inputs, verify_repository)
 
 
@@ -81,6 +81,57 @@ def test_corrupted_order_cost_is_detected_independently_of_nav():
     result.trades.loc[0, "stamp_duty_cost"] += 1
     with pytest.raises(DiagnosticError, match="stamp_duty_cost"):
         reconstruct_executed_path(daily, result.trades, market, 10_000, model)
+
+
+def test_target_name_with_no_bar_anywhere_is_ordered_but_never_priced():
+    """No Qlib bar in the whole window: the name never enters the panel.
+
+    D3 still logs the order — universe = units | target, the reindex leaves it
+    NaN, both flags go False, nothing fills. It is unpriceable, so a fill would
+    be unreconstructable and stays fatal; an unfilled order is a finding.
+    """
+    market, targets, model, _, _, _ = synthetic_case()
+    market = market.loc[market.instrument.ne("S00")].reset_index(drop=True)
+    result = run_vwap_backtest(market, targets, 10_000., model)
+    orders = result.trades.loc[result.trades.instrument.eq("S00")]
+    assert len(orders) and orders.desired_trade_amount.ne(0).any() and orders.executed_trade_amount.eq(0).all()
+    dates = sorted(market.trade_date.unique())
+    _, daily = summarize_backtest_performance(result.nav, pd.DataFrame({"trade_date": dates, "close": 100.}), initial_capital=10_000.)
+    with pytest.raises(DiagnosticError, match="absent from the market panel"):
+        reconstruct_executed_path(daily, result.trades, market, 10_000., model)
+    ledger = ReconciliationLedger(collect=True)
+    path = reconstruct_executed_path(daily, result.trades, market, 10_000., model, ledger)
+    assert path.daily.accounting_residual.abs().max() < 1e-12
+    assert {f["kind"] for f in ledger.findings} == {"unpriceable_ordered_instrument"}
+    assert "S00" not in path.orders.instrument.tolist()
+    # a fill on an unpriceable name cannot be reconstructed at all
+    trades = result.trades.copy()
+    trades.loc[trades.instrument.eq("S00"), "executed_trade_amount"] = 500.
+    with pytest.raises(DiagnosticError, match="filled orders absent"):
+        reconstruct_executed_path(daily, trades, market, 10_000., model, ReconciliationLedger(collect=True))
+
+
+def test_collecting_ledger_enumerates_every_discrepancy_and_blocks_acceptance():
+    """One run should surface every disagreement, not just the first row."""
+    market, _, model, result, daily, _ = synthetic_case()
+    trades = result.trades.copy()
+    traded = trades.executed_trade_amount.abs().nlargest(3).index
+    trades.loc[traded[0], "stamp_duty_cost"] += 1.0
+    trades.loc[traded[1], "pretrade_weight"] += 0.05
+    trades.loc[traded[2], "blocked_by_tradability"] = ~trades.loc[traded[2], "blocked_by_tradability"]
+    corrupt = daily.copy()
+    corrupt.loc[3, "nav"] += 25.0
+    with pytest.raises(DiagnosticError):
+        reconstruct_executed_path(corrupt, trades, market, 10_000., model)
+    ledger = ReconciliationLedger(collect=True)
+    reconstruct_executed_path(corrupt, trades, market, 10_000., model, ledger)
+    kinds = {f["kind"] for f in ledger.findings}
+    assert {"order_cost", "pretrade_weight", "blocked_flag", "nav"} <= kinds
+    assert len(ledger.findings) >= 4 and not ledger.summary()["clean"]
+    ledger.context = {"window": "design", "layer": 2}
+    ledger.note("tagged", kind="probe")
+    assert ledger.findings[-1]["window"] == "design" and ledger.findings[-1]["layer"] == 2
+    assert ReconciliationLedger().summary() == {"total": 0, "clean": True, "by_group": []}
 
 
 def test_order_for_a_name_with_no_market_row_that_day_reconciles():

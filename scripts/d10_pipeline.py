@@ -22,9 +22,9 @@ from src.d6_core import compute_raw_style_history, tushare_to_qlib  # noqa: E402
 from src.d8_core import make_ideal_execution_market  # noqa: E402
 from src.d9_core import aggregate_daily_to_monthly, summarize_monthly_performance  # noqa: E402
 from src.d10_core import (  # noqa: E402
-    DiagnosticError, align_stress_daily, attribute_executed_path, executed_turnover_split,
-    half_l1, linked_monthly, path_gross_net, price_panels, reconstruct_executed_path,
-    require_close, stress_schedule, turnover_split, unique_frame,
+    DiagnosticError, ReconciliationLedger, align_stress_daily, attribute_executed_path,
+    executed_turnover_split, half_l1, linked_monthly, path_gross_net, price_panels,
+    reconstruct_executed_path, require_close, stress_schedule, turnover_split, unique_frame,
 )
 from src.d10_io import (  # noqa: E402
     D10Output, assert_snapshot_unchanged, preflight, snapshot_inputs, verify_repository,
@@ -358,7 +358,7 @@ def plot_attribution(monthly, output, name):
     fig.tight_layout(); fig.savefig(output.target(name), dpi=160); plt.close(fig)
 
 
-def run_stresses(access, config, inputs, main, output):
+def run_stresses(access, config, inputs, main, output, ledger):
     reports = Path(config["data"]["reports_dir"])
     start, end = inputs["start"], inputs["end"]
     capital = float(config["d9"]["main_capital_cny"])
@@ -368,8 +368,9 @@ def run_stresses(access, config, inputs, main, output):
     impact_trades = read_frame(access, reports / "d9_v2_impact2x_trades.parquet", "execution_date", start, end)
     if not impact.trade_date.equals(main.trade_date):
         raise DiagnosticError("existing impact2x date range differs from main")
+    ledger.context = {"window": "oos", "capital": capital, "layer": "stress_impact2x"}
     impact_path = reconstruct_executed_path(impact, impact_trades, inputs["strategy"], capital,
-                                          replace(base_model, impact_coefficient=2 * base_model.impact_coefficient))
+                                          replace(base_model, impact_coefficient=2 * base_model.impact_coefficient), ledger)
     for scenario in ["impact2x_reused", "delay_one_day", "biweekly"]:
         if scenario == "impact2x_reused":
             daily, trades, path = impact, impact_trades, impact_path
@@ -385,7 +386,8 @@ def run_stresses(access, config, inputs, main, output):
             expected = schedule.dropna(subset=["dispatch_date"]).set_index("dispatch_date").execution_date
             if not trades.execution_date.equals(trades.signal_date.map(expected)):
                 raise DiagnosticError("stress actual execution dates violate fixed schedule")
-            path = reconstruct_executed_path(daily, trades, inputs["strategy"], capital, base_model)
+            ledger.context = {"window": "oos", "capital": capital, "layer": f"stress_{scenario}"}
+            path = reconstruct_executed_path(daily, trades, inputs["strategy"], capital, base_model, ledger)
             output.parquet(f"stress_{scenario}_schedule.parquet", schedule)
             output.parquet(f"stress_{scenario}_targets.parquet", dispatched)
             source = "frozen-target execution schedule sensitivity; no alpha refit or reoptimization"
@@ -405,7 +407,7 @@ def run_stresses(access, config, inputs, main, output):
     return rows
 
 
-def run_diagnostics(access, config, output):
+def run_diagnostics(access, config, output, ledger):
     summaries, ladder_details, layer2, attribution = [], [], [], {}
     reports = Path(config["data"]["reports_dir"])
     base_model = CostModel.from_config(config)
@@ -439,8 +441,13 @@ def run_diagnostics(access, config, output):
                 require_close(daily.benchmark_return, official_returns, "saved benchmark / official H00905 parity")
                 selected_market = inputs["ideal"] if layer < 2 else inputs["strategy"]
                 model = CostModel.zero_cost(float(config["d8"]["ideal_participation_limit"])) if layer == 0 else replace(base_model, participation_limit=float(config["d8"]["ideal_participation_limit"])) if layer == 1 else base_model
-                path = reconstruct_executed_path(daily, trades, selected_market, capital, model)
+                ledger.context = {"window": window, "capital": capital, "layer": layer}
+                before = len(ledger.findings)
+                path = reconstruct_executed_path(daily, trades, selected_market, capital, model, ledger)
+                if len(ledger.findings) > before:
+                    print(f"  {len(ledger.findings) - before} reconciliation finding(s) recorded; continuing", flush=True)
                 metrics, detail = diagnose_layer(window, layer, capital, inputs, daily, trades, path, previous_path)
+                metrics["reconciliation_findings"] = len(ledger.findings) - before
                 if capital == main_capital:
                     require_close([metrics["net_excess_cagr_difference"]], [expected_layers[layer]["annualized_excess_return"]], "frozen ladder CAGR")
                 summaries.append(metrics); ladder_details.append(detail)
@@ -466,7 +473,7 @@ def run_diagnostics(access, config, output):
             del previous_path, previous_daily, path
         if window == "oos":
             print("D10 oos: versioned execution sensitivity tests", flush=True)
-            stresses = run_stresses(access, config, inputs, main_saved, output)
+            stresses = run_stresses(access, config, inputs, main_saved, output, ledger)
     ladder = pd.DataFrame(summaries)
     output.parquet("ladder_decomposition.parquet", ladder)
     output.parquet("ladder_by_signal.parquet", pd.concat(ladder_details, ignore_index=True))
@@ -477,14 +484,17 @@ def run_diagnostics(access, config, output):
         raise DiagnosticError("2026 July monthly observation missing")
     july_values = july[["month", "portfolio_return", "benchmark_return", "excess_return"]].iloc[0].to_dict()
     output.json("july_2026.json", july_values)
-    passed = bool(len(ladder) == 28 and all(x["three_block_residual_passed"] for x in attribution.values()))
+    findings = ledger.summary()
+    passed = bool(len(ladder) == 28 and findings["clean"]
+                  and all(x["three_block_residual_passed"] for x in attribution.values()))
     summary = {"version": "D10-v1", "purpose": "post-No-Go diagnosis only", "decision": "No-Go",
         "decision_changed": False, "main_model_refitted": False, "main_targets_reoptimized": False,
         "d9_v2_classification": "post_oos_methodology_amendment", "frozen_d9_v2_performance": frozen_summary["performance"],
         "ladder_rows": len(ladder), "ladder2_comparisons": layer2, "attribution": attribution,
         "stress_scenarios": stresses, "july_2026": july_values,
+        "reconciliation": findings,
         "diagnostic_acceptance": {"all_28_layer_capital_windows": len(ladder) == 28,
-            "accounting_reconciled": True, "stresses_versioned": len(stresses) == 3,
+            "accounting_reconciled": findings["clean"], "stresses_versioned": len(stresses) == 3,
             "three_block_residual_under_0_5pct_per_year": all(x["three_block_residual_passed"] for x in attribution.values()),
             "passed_before_final_input_integrity_check": passed},
         "limitations": ["Fixed SW2021 is non-PIT, especially approximate before 2021.",
@@ -523,6 +533,17 @@ def write_report(summary, ladder, output):
     lines += ["", "冲击翻倍复用 V2，延迟与双周均为冻结目标的执行排期敏感性，保留现金等待日和主结果全部比较日期；调样滞留权重单列。", "",
         "## 2026 年 7 月", "",
         f"模型绝对收益 **{j['portfolio_return']:.2%}**；中证500全收益指数 **{j['benchmark_return']:.2%}**；当月超额 **{j['excess_return']:.2%}**。", "",
+        "## 账本核对", ""]
+    reconciliation = summary["reconciliation"]
+    if reconciliation["clean"]:
+        lines.append("28 组重建与冻结账本逐日逐笔一致，无不一致项。")
+    else:
+        lines += [f"**共 {reconciliation['total']} 项不一致**，已逐条落盘于 `reconciliation_findings.json`；",
+                  "诊断验收因此判定为未通过。D8 与 D9-V2 文件未被改动，原结果一律保留。", "",
+                  "| 窗口 | 资金 | 层 | 不一致项 |", "|---|---:|---|---:|"]
+        for r in reconciliation["by_group"]:
+            lines.append(f"| {r.get('window', '')} | {r.get('capital', 0):,.0f} | {r.get('layer', '')} | {r['findings']} |")
+    lines += ["",
         "## 验收与勘误", "", f"诊断验收：{summary['diagnostic_acceptance']['passed']}。该值只表示 D10 诊断完整性，不能改变研究 No-Go。",
         "输入前后 SHA256 校验及 frozen-oos 核验详见 completion.json。既有 D1–D9 文件保留；静态发现与口径澄清详见仓库 D10勘误登记.md。", ""]
     output.text("d10_report.md", "\n".join(lines))
@@ -539,13 +560,17 @@ def main():
     if args.preflight:
         print(json.dumps(checked, ensure_ascii=False, indent=2)); return
     output = D10Output(ROOT, args.run_id)
+    # Enumerate every reconciliation discrepancy in one pass instead of stopping at
+    # the first. This absorbs nothing: findings are written whether the run finishes
+    # or dies, and any finding at all forces diagnostic acceptance to False.
+    ledger = ReconciliationLedger(collect=True)
     output.json("started.json", {**checked, "run_id": args.run_id, "classification": "D10 ex-post diagnostic only"})
     print("D10: hashing protected inputs and Qlib bins; originals are read only", flush=True)
     before = snapshot_inputs(ROOT, config)
     output.json("inputs_before.json", before)
     summary = ladder = error = None
     try:
-        summary, ladder = run_diagnostics(ResearchDataAccess(ROOT), config, output)
+        summary, ladder = run_diagnostics(ResearchDataAccess(ROOT), config, output, ledger)
     except Exception as exc:
         error = exc
         output.json("failure.json", {"error": str(exc), "traceback": traceback.format_exc(), "decision": "No-Go"})
@@ -553,6 +578,14 @@ def main():
             "historical_results_overwritten": False, "corrected_performance": None,
             "interpretation": "Input/code/accounting mismatch, not permission to repair or rerun D9.", "decision": "No-Go"})
     finally:
+        output.json("reconciliation_findings.json",
+                    {**ledger.summary(), "run_completed": error is None,
+                     "interpretation": "ledger discrepancies found by D10; D8/D9-V2 files are untouched",
+                     "findings": ledger.findings[:2000],
+                     "truncated": max(0, len(ledger.findings) - 2000), "decision": "No-Go"})
+        if ledger.findings:
+            print(f"D10: {len(ledger.findings)} reconciliation finding(s) written to "
+                  f"{output.path / 'reconciliation_findings.json'}", flush=True)
         after = snapshot_inputs(ROOT, config)
         output.json("inputs_after.json", after)
         try:

@@ -116,8 +116,10 @@ def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, mon
     hashes = {str(p): sha256(p) for p in reports.iterdir()}
     monkeypatch.setattr(pipeline, "load_window", lambda access, cfg, window, output: windows[window])
     output = D10Output(tmp_path, "integration_v1")
-    summary, ladder = pipeline.run_diagnostics(ResearchDataAccess(tmp_path), config, output)
+    summary, ladder = pipeline.run_diagnostics(
+        ResearchDataAccess(tmp_path), config, output, pipeline.ReconciliationLedger(collect=True))
     assert len(ladder) == 28
+    assert summary["reconciliation"]["clean"] and summary["diagnostic_acceptance"]["accounting_reconciled"]
     assert len(summary["ladder2_comparisons"]) == 4
     assert set(summary["attribution"]) == {"design", "oos"}
     assert len(summary["stress_scenarios"]) == 3
