@@ -6,9 +6,383 @@ from typing import Iterable, Mapping
 import numpy as np
 import pandas as pd
 
+from src.d7_core import (
+    OptimizationLimits,
+    OptimizationResult,
+    PortfolioOptimizationError,
+    audit_portfolio_constraints,
+)
+
 
 class OOSIntegrityError(RuntimeError):
     """Raised when the frozen one-shot OOS contract is violated."""
+
+
+def validate_v2_source_failures(
+    original_manifest: Mapping[str, object],
+    recovery_manifest: Mapping[str, object],
+    *,
+    expected_original: Mapping[str, object],
+    expected_recovery: Mapping[str, object],
+) -> dict[str, object]:
+    """Require byte-registered D9 failures before a post-OOS V2 may run."""
+
+    mismatches: dict[str, dict[str, object]] = {}
+    for prefix, manifest, expected in [
+        ("original", original_manifest, expected_original),
+        ("recovery", recovery_manifest, expected_recovery),
+    ]:
+        for key, value in expected.items():
+            if manifest.get(key) != value:
+                mismatches[f"{prefix}.{key}"] = {
+                    "expected": value,
+                    "actual": manifest.get(key),
+                }
+    if mismatches:
+        raise OOSIntegrityError(
+            "D9 V2 来源失败清单与登记不一致：" + str(mismatches)
+        )
+    recovery_traceback = str(recovery_manifest.get("traceback", ""))
+    required_traceback_fragments = [
+        "generate_final_targets",
+        "optimize_long_only_active_portfolio",
+        "PortfolioOptimizationError",
+        "status=infeasible",
+    ]
+    missing = [
+        value for value in required_traceback_fragments
+        if value not in recovery_traceback
+    ]
+    if missing:
+        raise OOSIntegrityError(
+            "D9 V2 恢复失败 traceback 缺少登记片段：" + ", ".join(missing)
+        )
+    return {
+        "validated": True,
+        "original_status": str(original_manifest["status"]),
+        "recovery_status": str(recovery_manifest["status"]),
+        "rank_ic_observed_before_v2": True,
+        "portfolio_performance_observed_before_v2": False,
+        "classification": "post_oos_methodology_amendment",
+    }
+
+
+def _prepare_turnover_v2_inputs(
+    expected_excess_return: pd.Series,
+    benchmark_weights: pd.Series,
+    pretrade_weights: pd.Series,
+    exposures: pd.DataFrame,
+    industry_columns: Iterable[str],
+    style_columns: Iterable[str],
+    limits: OptimizationLimits,
+) -> tuple[pd.Series, pd.Series, pd.Series, pd.DataFrame, list[str], list[str]]:
+    limits.validate()
+
+    def numeric(values: pd.Series, name: str) -> pd.Series:
+        result = pd.to_numeric(values, errors="coerce").astype(float)
+        if result.index.has_duplicates:
+            raise ValueError(f"{name} 存在重复索引")
+        if result.isna().any() or not np.isfinite(result.to_numpy()).all():
+            raise ValueError(f"{name} 含缺失或非有限值")
+        return result
+
+    benchmark = numeric(benchmark_weights, "benchmark_weights")
+    pretrade = numeric(pretrade_weights, "pretrade_weights")
+    mu = numeric(expected_excess_return, "expected_excess_return")
+    if len(benchmark) < 2:
+        raise ValueError("D9 V2 至少需要两只候选股票")
+    if (benchmark < 0).any() or (pretrade < 0).any():
+        raise ValueError("基准与调仓前权重不能为负")
+    if not np.isclose(benchmark.sum(), 1.0, atol=1e-8, rtol=0.0):
+        raise ValueError("基准权重和必须为 1")
+    if not np.isclose(pretrade.sum(), 1.0, atol=1e-8, rtol=0.0):
+        raise ValueError("调仓前权重和必须为 1")
+    mu = mu.reindex(benchmark.index)
+    if mu.isna().any():
+        missing = mu.index[mu.isna()].tolist()
+        raise ValueError("预期收益缺少股票：" + ", ".join(map(str, missing[:20])))
+    if exposures.index.has_duplicates or set(exposures.index) != set(benchmark.index):
+        raise ValueError("因子暴露与基准股票集合不一致")
+    frame = exposures.reindex(benchmark.index).copy()
+    industries = [str(value) for value in industry_columns]
+    styles = [str(value) for value in style_columns]
+    columns = industries + styles
+    if len(set(columns)) != len(columns):
+        raise ValueError("行业与风格约束列存在重复")
+    missing_columns = sorted(set(columns) - set(frame.columns))
+    if missing_columns:
+        raise ValueError("因子暴露缺少列：" + ", ".join(missing_columns))
+    factors = frame[columns].apply(pd.to_numeric, errors="coerce")
+    if factors.isna().any().any() or not np.isfinite(factors.to_numpy()).all():
+        raise ValueError("因子暴露含缺失或非有限值")
+    frame[columns] = factors
+    return mu, benchmark, pretrade, frame, industries, styles
+
+
+def _solve_turnover_v2_problem(
+    expected_excess_return: pd.Series,
+    benchmark_weights: pd.Series,
+    pretrade_weights: pd.Series,
+    exposures: pd.DataFrame,
+    industry_columns: Iterable[str],
+    style_columns: Iterable[str],
+    *,
+    cost_rate: float,
+    limits: OptimizationLimits,
+    solver: str,
+    minimize_turnover: bool,
+) -> tuple[OptimizationResult, dict[str, object]]:
+    try:
+        import cvxpy as cp
+    except ImportError as exc:  # pragma: no cover - runtime packaging
+        raise PortfolioOptimizationError(
+            "D9 V2 需要 cvxpy 与 Clarabel"
+        ) from exc
+    if str(solver).upper() != "CLARABEL":
+        raise ValueError("D9 V2 只允许使用 CLARABEL")
+    if "CLARABEL" not in cp.installed_solvers():
+        raise PortfolioOptimizationError("当前 cvxpy 环境没有可用的 CLARABEL")
+    rate = float(cost_rate)
+    if not np.isfinite(rate) or rate < 0:
+        raise ValueError("目标函数成本系数必须是非负有限数")
+    mu, benchmark, pretrade, frame, industries, styles = (
+        _prepare_turnover_v2_inputs(
+            expected_excess_return,
+            benchmark_weights,
+            pretrade_weights,
+            exposures,
+            industry_columns,
+            style_columns,
+            limits,
+        )
+    )
+    index = benchmark.index
+    wb = benchmark.to_numpy(float)
+    mu_values = mu.to_numpy(float)
+    w0_current = pretrade.reindex(index, fill_value=0.0).to_numpy(float)
+    forced_exit = float(pretrade.loc[~pretrade.index.isin(index)].sum())
+    variable = cp.Variable(len(index), name="d9_v2_portfolio_weight")
+    active = variable - wb
+    current_universe_l1 = cp.norm1(variable - w0_current)
+    total_l1 = current_universe_l1 + forced_exit
+    constraints = [
+        cp.sum(variable) == 1.0,
+        variable >= 0.0,
+        active <= limits.stock_active,
+        active >= -limits.stock_active,
+    ]
+    if industries:
+        industry_active = frame[industries].to_numpy(float).T @ active
+        constraints.extend(
+            [
+                industry_active <= limits.industry_active,
+                industry_active >= -limits.industry_active,
+            ]
+        )
+    if styles:
+        style_active = frame[styles].to_numpy(float).T @ active
+        constraints.extend(
+            [
+                style_active <= limits.style_active,
+                style_active >= -limits.style_active,
+            ]
+        )
+    if not minimize_turnover:
+        # Fully invested portfolios satisfy current-universe L1 >= forced_exit.
+        # Hence total single-sided turnover minus forced_exit is the optional
+        # (alpha-driven) part of trading. Mandatory exits still enter total_l1
+        # and therefore remain fully charged in the objective and backtest.
+        constraints.append(
+            0.5 * total_l1 <= forced_exit + limits.single_sided_turnover
+        )
+        objective = cp.Maximize(mu_values @ active - rate * total_l1)
+    else:
+        objective = cp.Minimize(total_l1)
+    problem = cp.Problem(objective, constraints)
+    try:
+        problem.solve(solver="CLARABEL", verbose=False)
+    except cp.error.SolverError as exc:
+        raise PortfolioOptimizationError(f"D9 V2 CLARABEL 求解失败：{exc}") from exc
+    status = str(problem.status)
+    if status != str(cp.OPTIMAL) or variable.value is None:
+        purpose = "最小换手可行性审计" if minimize_turnover else "组合优化"
+        raise PortfolioOptimizationError(
+            f"D9 V2 {purpose}未得到严格 optimal，status={status}"
+        )
+    raw = np.asarray(variable.value, dtype=float).reshape(-1)
+    if not np.isfinite(raw).all():
+        raise PortfolioOptimizationError("D9 V2 CLARABEL 返回非有限权重")
+    cleaned = raw.copy()
+    cleaned[np.abs(cleaned) <= limits.tolerance * 0.1] = 0.0
+    if cleaned.min() < -limits.tolerance:
+        raise PortfolioOptimizationError("D9 V2 CLARABEL 返回超过容差的负权重")
+    cleaned = np.maximum(cleaned, 0.0)
+    cleaned /= float(cleaned.sum())
+    weights = pd.Series(cleaned, index=index, name="target_weight")
+    adjusted_limits = OptimizationLimits(
+        stock_active=limits.stock_active,
+        industry_active=limits.industry_active,
+        style_active=limits.style_active,
+        single_sided_turnover=(
+            1.0 if minimize_turnover
+            else min(1.0, forced_exit + limits.single_sided_turnover)
+        ),
+        tolerance=limits.tolerance,
+    )
+    audit = audit_portfolio_constraints(
+        weights,
+        benchmark,
+        pretrade,
+        frame,
+        industries,
+        styles,
+        adjusted_limits,
+    )
+    total_turnover = float(audit["single_sided_turnover"])
+    discretionary = max(total_turnover - forced_exit, 0.0)
+    audit["mandatory_membership_turnover"] = forced_exit
+    audit["discretionary_single_sided_turnover"] = discretionary
+    audit["frozen_discretionary_turnover_limit"] = float(
+        limits.single_sided_turnover
+    )
+    audit["v2_total_turnover_budget"] = min(
+        1.0, forced_exit + limits.single_sided_turnover
+    )
+    audit["checks"]["total_turnover_v2_budget"] = audit["checks"].pop(
+        "single_sided_turnover"
+    )
+    audit["checks"]["discretionary_turnover"] = bool(
+        discretionary <= limits.single_sided_turnover + limits.tolerance
+    )
+    audit["passed"] = bool(all(audit["checks"].values()))
+    non_turnover_passed = bool(
+        all(
+            passed for name, passed in audit["checks"].items()
+            if name not in {"total_turnover_v2_budget", "discretionary_turnover"}
+        )
+    )
+    if (minimize_turnover and not non_turnover_passed) or (
+        not minimize_turnover and not audit["passed"]
+    ):
+        failed = [
+            name for name, passed in audit["checks"].items()
+            if not passed
+            and (not minimize_turnover or name not in {
+                "total_turnover_v2_budget", "discretionary_turnover"
+            })
+        ]
+        raise PortfolioOptimizationError(
+            "D9 V2 求解结果未通过实际约束审计：" + ", ".join(failed)
+        )
+    active_values = weights.to_numpy(float) - wb
+    expected_active = float(mu_values @ active_values)
+    estimated_cost = rate * float(audit["total_l1_trade"])
+    result = OptimizationResult(
+        weights=weights,
+        status=status,
+        objective_value=(
+            -float(audit["total_l1_trade"])
+            if minimize_turnover
+            else expected_active - estimated_cost
+        ),
+        expected_active_return=expected_active,
+        estimated_linear_cost=estimated_cost,
+        audit=audit,
+    )
+    feasibility = {
+        "solver_status": status,
+        "minimum_total_single_sided_turnover": total_turnover,
+        "mandatory_membership_turnover": forced_exit,
+        "minimum_discretionary_single_sided_turnover": discretionary,
+        "frozen_total_turnover_limit": float(limits.single_sided_turnover),
+        "v2_total_turnover_budget": min(
+            1.0, forced_exit + limits.single_sided_turnover
+        ),
+        "frozen_rule_feasible": bool(
+            total_turnover <= limits.single_sided_turnover + limits.tolerance
+        ),
+        "v2_rule_feasible": bool(
+            discretionary <= limits.single_sided_turnover + limits.tolerance
+        ),
+        "frozen_turnover_shortfall": max(
+            total_turnover - limits.single_sided_turnover, 0.0
+        ),
+        "non_turnover_constraints_passed": non_turnover_passed,
+        "forced_exit_instrument_count": int(
+            (~pretrade.index.isin(index)).sum()
+        ),
+        "forced_exit_instruments": {
+            str(key): float(value)
+            for key, value in pretrade.loc[~pretrade.index.isin(index)]
+            .sort_values(ascending=False)
+            .items()
+        },
+        "constraint_metrics": {
+            "maximum_stock_active": float(audit["maximum_stock_active"]),
+            "maximum_industry_active": float(audit["maximum_industry_active"]),
+            "maximum_style_active": float(audit["maximum_style_active"]),
+            "weight_sum_error": float(audit["weight_sum_error"]),
+            "minimum_weight": float(audit["minimum_weight"]),
+        },
+    }
+    return result, feasibility
+
+
+def audit_minimum_turnover_feasibility(
+    expected_excess_return: pd.Series,
+    benchmark_weights: pd.Series,
+    pretrade_weights: pd.Series,
+    exposures: pd.DataFrame,
+    industry_columns: Iterable[str],
+    style_columns: Iterable[str],
+    *,
+    limits: OptimizationLimits,
+    solver: str = "CLARABEL",
+) -> dict[str, object]:
+    """Minimize turnover under every frozen non-turnover constraint."""
+
+    _, feasibility = _solve_turnover_v2_problem(
+        expected_excess_return,
+        benchmark_weights,
+        pretrade_weights,
+        exposures,
+        industry_columns,
+        style_columns,
+        cost_rate=0.0,
+        limits=limits,
+        solver=solver,
+        minimize_turnover=True,
+    )
+    return feasibility
+
+
+def optimize_long_only_active_portfolio_v2(
+    expected_excess_return: pd.Series,
+    benchmark_weights: pd.Series,
+    pretrade_weights: pd.Series,
+    exposures: pd.DataFrame,
+    industry_columns: Iterable[str],
+    style_columns: Iterable[str],
+    *,
+    cost_rate: float,
+    limits: OptimizationLimits,
+    solver: str = "CLARABEL",
+) -> OptimizationResult:
+    """D9 V2: cap discretionary turnover; charge all mandatory trading."""
+
+    result, _ = _solve_turnover_v2_problem(
+        expected_excess_return,
+        benchmark_weights,
+        pretrade_weights,
+        exposures,
+        industry_columns,
+        style_columns,
+        cost_rate=cost_rate,
+        limits=limits,
+        solver=solver,
+        minimize_turnover=False,
+    )
+    return result
 
 
 def validate_membership_recovery_failure(

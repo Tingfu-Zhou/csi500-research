@@ -56,6 +56,7 @@ from scripts.d8_pipeline import (  # noqa: E402
     build_stock_returns,
     calculate_layer_tracking_error,
     generate_optimized_layer_targets,
+    optimizer_limits_for_layer,
     run_loss_ladder_backtests,
 )
 from src.d2_core import (  # noqa: E402
@@ -90,6 +91,7 @@ from src.d6_core import (  # noqa: E402
     require_industry_coverage,
 )
 from src.d7_core import (  # noqa: E402
+    PortfolioOptimizationError,
     annualized_tracking_error,
     drift_pretrade_weights,
     optimize_long_only_active_portfolio,
@@ -108,10 +110,13 @@ from src.d9_core import (  # noqa: E402
     apply_identifier_alias_removals,
     apply_snapshot_instrument_bridges,
     assert_frozen_config_unchanged,
+    audit_minimum_turnover_feasibility,
     evaluate_oos_thresholds,
+    optimize_long_only_active_portfolio_v2,
     summarize_monthly_performance,
     validate_membership_recovery_failure,
     validate_oos_fold_records,
+    validate_v2_source_failures,
 )
 from src.data_access import ResearchDataAccess  # noqa: E402
 from src.date_utils import parse_date_series  # noqa: E402
@@ -274,14 +279,22 @@ def required_data_paths(config: dict, mode: str) -> list[Path]:
 
 
 def preflight(
-    config: dict, *, membership_recovery: bool = False
+    config: dict,
+    *,
+    membership_recovery: bool = False,
+    v2_stage: str | None = None,
 ) -> tuple[dict[str, object], dict[str, dict]]:
+    if membership_recovery and v2_stage is not None:
+        raise ValueError("成分恢复与 D9 V2 模式不能同时启用")
+    if v2_stage not in {None, "audit", "run"}:
+        raise ValueError(f"未知 D9 V2 阶段：{v2_stage}")
     repository = verify_frozen_repository(config)
     upstream = require_upstream_artifacts(config)
     access = ResearchDataAccess(ROOT)
     manifest = ROOT / config["d9"]["run_manifest"]
     summary = ROOT / config["data"]["reports_dir"] / "d9_summary.json"
     recovery_audit: dict[str, object] | None = None
+    v2_audit: dict[str, object] | None = None
     if membership_recovery:
         recovery = config["d9"]["membership_recovery"]
         recovery_manifest = ROOT / recovery["recovery_manifest"]
@@ -302,6 +315,103 @@ def preflight(
                 "scope": "benchmark_membership_metadata_only",
             }
         )
+    elif v2_stage is not None:
+        v2 = config["d9"]["v2"]
+        recovery_manifest = ROOT / config["d9"]["membership_recovery"][
+            "recovery_manifest"
+        ]
+        if not manifest.exists() or not recovery_manifest.exists():
+            raise OOSIntegrityError("D9 V2 要求原始及恢复失败清单同时存在")
+        if summary.exists():
+            raise OOSIntegrityError("检测到原版 D9 完整结果，不得启动事后修订 V2")
+        original_hash = sha256(manifest)
+        recovery_hash = sha256(recovery_manifest)
+        if original_hash != str(v2["original_manifest_sha256"]):
+            raise OOSIntegrityError("D9 原始失败清单 SHA256 与 V2 登记不一致")
+        if recovery_hash != str(v2["recovery_manifest_sha256"]):
+            raise OOSIntegrityError("D9 恢复失败清单 SHA256 与 V2 登记不一致")
+        original_payload = json.loads(manifest.read_text(encoding="utf-8"))
+        recovery_payload = json.loads(
+            recovery_manifest.read_text(encoding="utf-8")
+        )
+        v2_audit = validate_v2_source_failures(
+            original_payload,
+            recovery_payload,
+            expected_original=config["d9"]["membership_recovery"][
+                "original_failure"
+            ],
+            expected_recovery=v2["recovery_failure"],
+        )
+        v2_audit.update(
+            {
+                "original_manifest": str(manifest.relative_to(ROOT)),
+                "original_manifest_sha256": original_hash,
+                "recovery_manifest": str(recovery_manifest.relative_to(ROOT)),
+                "recovery_manifest_sha256": recovery_hash,
+                "source_manifests_preserved": True,
+            }
+        )
+        feasibility_path = ROOT / v2["feasibility_audit"]
+        feasibility_dates_path = ROOT / v2["feasibility_dates"]
+        v2_manifest_path = ROOT / v2["run_manifest"]
+        v2_summary_path = ROOT / v2["summary"]
+        if v2_stage == "audit":
+            existing = [
+                path for path in [
+                    feasibility_path,
+                    v2_manifest_path,
+                    v2_summary_path,
+                ]
+                if path.exists()
+            ]
+            if existing:
+                raise OOSIntegrityError(
+                    "D9 V2 审计或运行记录已存在，拒绝覆盖："
+                    + ", ".join(str(path.relative_to(ROOT)) for path in existing)
+                )
+        else:
+            if not feasibility_path.exists() or not feasibility_dates_path.exists():
+                raise OOSIntegrityError("D9 V2 正式运行前必须先完成可行性审计")
+            if v2_manifest_path.exists() or v2_summary_path.exists():
+                raise OOSIntegrityError("D9 V2 已有运行记录或结果，拒绝再次启动")
+            feasibility = json.loads(
+                feasibility_path.read_text(encoding="utf-8")
+            )
+            required = {
+                "status": "passed",
+                "classification": "post_oos_methodology_amendment",
+                "original_manifest_sha256": original_hash,
+                "recovery_manifest_sha256": recovery_hash,
+                "v2_head_commit": repository["d9_head_commit"],
+                "config_sha256": sha256(ROOT / "config/config.yaml"),
+                "portfolio_performance_generated": False,
+            }
+            mismatch = {
+                key: {"expected": value, "actual": feasibility.get(key)}
+                for key, value in required.items()
+                if feasibility.get(key) != value
+            }
+            if mismatch:
+                raise OOSIntegrityError(
+                    "D9 V2 可行性审计凭据不匹配：" + str(mismatch)
+                )
+            if feasibility.get("v2_all_dates_feasible") is not True:
+                raise OOSIntegrityError("D9 V2 可行性审计未证明全部日期可解")
+            if feasibility.get("frozen_first_failure", {}).get(
+                "frozen_rule_feasible"
+            ) is not False:
+                raise OOSIntegrityError("D9 V2 审计没有复现冻结换手规则不可行")
+            if feasibility.get("feasibility_dates_sha256") != sha256(
+                feasibility_dates_path
+            ):
+                raise OOSIntegrityError("D9 V2 分日可行性审计文件哈希不匹配")
+            v2_audit["feasibility_audit"] = str(
+                feasibility_path.relative_to(ROOT)
+            )
+            v2_audit["feasibility_audit_sha256"] = sha256(feasibility_path)
+            v2_audit["feasibility_dates_sha256"] = sha256(
+                feasibility_dates_path
+            )
     elif manifest.exists() or summary.exists():
         raise OOSIntegrityError(
             "检测到 D9 运行记录或结果；样本外只允许运行一次，拒绝再次启动。"
@@ -368,6 +478,8 @@ def preflight(
             "dependency_versions": installed_versions,
             "dependency_versions_match_freeze": True,
             "membership_recovery": recovery_audit,
+            "v2_source_failures": v2_audit,
+            "v2_stage": v2_stage,
         },
         upstream,
     )
@@ -875,6 +987,8 @@ def run_walk_forward_models(
     dataset: pd.DataFrame,
     feature_names: list[str],
     config: dict,
+    *,
+    artifact_prefix: str = "d9",
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, object]]:
     windows = config["windows"]
     d4 = config["d4"]
@@ -922,7 +1036,7 @@ def run_walk_forward_models(
             float(calibration["coefficient"]), first_expected, rtol=1e-12, atol=1e-15
         ):
             raise OOSIntegrityError("2019 校准系数未复用冻结 D5 设计期结果")
-        model_path = models / f"d9_lightgbm_{fold.prediction_year}.txt"
+        model_path = models / f"{artifact_prefix}_lightgbm_{fold.prediction_year}.txt"
         _, predicted, importance, params, version = fit_default_lightgbm(
             train, prediction, feature_names, seed, model_path
         )
@@ -989,7 +1103,7 @@ def run_walk_forward_models(
         model_parameters = params
         lightgbm_version = version
         print(
-            f"D9 第 {fold.prediction_year} 折完成："
+            f"{artifact_prefix.upper()} 第 {fold.prediction_year} 折完成："
             f"train_end={fold.train_end.date()}，Rank IC={ic['rank_ic_mean']:.4f}",
             flush=True,
         )
@@ -1112,6 +1226,322 @@ def prepare_oos_market(
     return market, strategy
 
 
+def audit_v2_turnover_path(
+    predictions: pd.DataFrame,
+    exposures: pd.DataFrame,
+    market: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    industry_columns: list[str],
+    config: dict,
+) -> tuple[dict[str, object], pd.DataFrame]:
+    """Replay target construction only; never construct portfolio performance."""
+
+    d7 = config["d7"]
+    limits, style_columns = validate_d7_config(config)
+    signal_dates = pd.DatetimeIndex(
+        predictions["sample_date"].unique()
+    ).normalize().sort_values()
+    schedule = make_execution_schedule(signal_dates, calendar)
+    execution_by_signal = schedule.set_index("signal_date")["execution_date"]
+    price_matrix = build_execution_price_matrix(market)
+    expected_column = str(config["d5"]["expected_return_column"])
+    cost_model = CostModel.from_config(config)
+
+    def inputs_for_date(signal_date: pd.Timestamp) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+        cross = (
+            exposures.loc[exposures["trade_date"].eq(signal_date)]
+            .set_index("instrument")
+            .sort_index()
+        )
+        benchmark = pd.to_numeric(cross["benchmark_weight"], errors="coerce")
+        benchmark = benchmark / benchmark.sum()
+        observed = predictions.loc[predictions["sample_date"].eq(signal_date)]
+        unexpected = sorted(set(observed["instrument"]) - set(cross.index))
+        if unexpected:
+            raise ValueError(
+                f"{signal_date.date()} D9 V2 审计含非当日成分："
+                + ", ".join(unexpected[:20])
+            )
+        mu = pd.to_numeric(
+            observed.set_index("instrument")[expected_column], errors="coerce"
+        ).reindex(cross.index)
+        if mu.loc[mu.index.isin(observed["instrument"])].isna().any():
+            raise ValueError(f"{signal_date.date()} D9 V2 审计 μ 含非有限值")
+        return cross, benchmark, mu.fillna(0.0).astype(float)
+
+    frozen_failure: dict[str, object] | None = None
+    frozen_previous: pd.Series | None = None
+    frozen_execution: pd.Timestamp | None = None
+    for number, signal_date in enumerate(signal_dates, start=1):
+        signal_date = pd.Timestamp(signal_date).normalize()
+        execution_date = pd.Timestamp(execution_by_signal.loc[signal_date]).normalize()
+        cross, benchmark, mu = inputs_for_date(signal_date)
+        if frozen_previous is None:
+            pretrade = benchmark.copy()
+        else:
+            held = frozen_previous[
+                frozen_previous > limits.tolerance * 0.1
+            ].index
+            pretrade = drift_pretrade_weights(
+                frozen_previous,
+                holding_returns_between(
+                    price_matrix, frozen_execution, execution_date, held
+                ),
+                weight_tolerance=1e-8,
+            )
+        cost_rate = symmetric_l1_cost_rate(
+            cost_model.commission_rate,
+            cost_model.transfer_fee_rate,
+            cost_model.stamp_rate(execution_date),
+        )
+        try:
+            result = optimize_long_only_active_portfolio(
+                mu,
+                benchmark,
+                pretrade,
+                cross,
+                industry_columns,
+                style_columns,
+                cost_rate=cost_rate,
+                limits=limits,
+                solver=str(d7["solver"]),
+            )
+        except PortfolioOptimizationError as exc:
+            feasibility = audit_minimum_turnover_feasibility(
+                mu,
+                benchmark,
+                pretrade,
+                cross,
+                industry_columns,
+                style_columns,
+                limits=limits,
+                solver=str(d7["solver"]),
+            )
+            frozen_failure = {
+                "signal_number": number,
+                "signal_date": str(signal_date.date()),
+                "execution_date": str(execution_date.date()),
+                "original_error_type": type(exc).__name__,
+                "original_error": str(exc),
+                **feasibility,
+            }
+            break
+        frozen_previous = result.weights
+        frozen_execution = execution_date
+    if frozen_failure is None:
+        raise OOSIntegrityError("D9 V2 审计未复现已登记的冻结优化不可行")
+    if frozen_failure["frozen_rule_feasible"] is not False:
+        raise OOSIntegrityError("冻结优化失败但最小换手审计未证明 15% 上限冲突")
+    if frozen_failure["v2_rule_feasible"] is not True:
+        raise OOSIntegrityError("D9 V2 换手修订不能恢复原失败日可行性")
+
+    v2_rows: list[dict[str, object]] = []
+    v2_previous: pd.Series | None = None
+    v2_execution: pd.Timestamp | None = None
+    for number, signal_date in enumerate(signal_dates, start=1):
+        signal_date = pd.Timestamp(signal_date).normalize()
+        execution_date = pd.Timestamp(execution_by_signal.loc[signal_date]).normalize()
+        cross, benchmark, mu = inputs_for_date(signal_date)
+        if v2_previous is None:
+            pretrade = benchmark.copy()
+        else:
+            held = v2_previous[v2_previous > limits.tolerance * 0.1].index
+            pretrade = drift_pretrade_weights(
+                v2_previous,
+                holding_returns_between(
+                    price_matrix, v2_execution, execution_date, held
+                ),
+                weight_tolerance=1e-8,
+            )
+        cost_rate = symmetric_l1_cost_rate(
+            cost_model.commission_rate,
+            cost_model.transfer_fee_rate,
+            cost_model.stamp_rate(execution_date),
+        )
+        result = optimize_long_only_active_portfolio_v2(
+            mu,
+            benchmark,
+            pretrade,
+            cross,
+            industry_columns,
+            style_columns,
+            cost_rate=cost_rate,
+            limits=limits,
+            solver=str(d7["solver"]),
+        )
+        audit = result.audit
+        v2_rows.append(
+            {
+                "phase": "v2_full_path",
+                "signal_number": number,
+                "signal_date": signal_date,
+                "execution_date": execution_date,
+                "solver_status": result.status,
+                "total_single_sided_turnover": audit["single_sided_turnover"],
+                "mandatory_membership_turnover": audit[
+                    "mandatory_membership_turnover"
+                ],
+                "discretionary_single_sided_turnover": audit[
+                    "discretionary_single_sided_turnover"
+                ],
+                "v2_total_turnover_budget": audit["v2_total_turnover_budget"],
+                "maximum_stock_active": audit["maximum_stock_active"],
+                "maximum_industry_active": audit["maximum_industry_active"],
+                "maximum_style_active": audit["maximum_style_active"],
+                "all_constraints_passed": audit["passed"],
+                "is_frozen_first_failure_date": bool(
+                    str(signal_date.date()) == frozen_failure["signal_date"]
+                ),
+            }
+        )
+        v2_previous = result.weights
+        v2_execution = execution_date
+        if number == 1 or number % 40 == 0 or number == len(signal_dates):
+            print(
+                f"D9 V2 可行性审计 {number}/{len(signal_dates)}："
+                f"{signal_date.date()}",
+                flush=True,
+            )
+    dates = pd.DataFrame(v2_rows)
+    failure_row = {
+        "phase": "frozen_first_failure_minimum_turnover",
+        **{
+            key: value for key, value in frozen_failure.items()
+            if not isinstance(value, (dict, list, tuple, set))
+        },
+    }
+    failure_row["signal_date"] = pd.Timestamp(frozen_failure["signal_date"])
+    failure_row["execution_date"] = pd.Timestamp(
+        frozen_failure["execution_date"]
+    )
+    dates = pd.concat([dates, pd.DataFrame([failure_row])], ignore_index=True)
+    payload = {
+        "status": "passed",
+        "classification": "post_oos_methodology_amendment",
+        "audit_scope": "target_optimization_feasibility_only",
+        "frozen_first_failure": frozen_failure,
+        "v2_all_dates_feasible": bool(
+            len(v2_rows) == len(signal_dates)
+            and pd.DataFrame(v2_rows)["all_constraints_passed"].all()
+        ),
+        "v2_signal_dates": int(len(v2_rows)),
+        "v2_maximum_total_single_sided_turnover": float(
+            pd.DataFrame(v2_rows)["total_single_sided_turnover"].max()
+        ),
+        "v2_maximum_mandatory_membership_turnover": float(
+            pd.DataFrame(v2_rows)["mandatory_membership_turnover"].max()
+        ),
+        "v2_maximum_discretionary_single_sided_turnover": float(
+            pd.DataFrame(v2_rows)["discretionary_single_sided_turnover"].max()
+        ),
+        "v2_fallback_count": 0,
+        "portfolio_backtest_run": False,
+        "portfolio_performance_generated": False,
+        "underlying_prices_read_for_causal_pretrade_drift": True,
+        "rank_ic_was_already_observed_in_failed_recovery": True,
+        "methodology_change": (
+            "15% 上限由总单边换手改为主动单边换手；强制成分退出单独列示，"
+            "仍计入总成交、目标函数线性成本和后续真实回测成本"
+        ),
+        "unchanged": [
+            "D1-D8 frozen files and configuration",
+            "alpha model and hyperparameters",
+            "stock, industry and style constraints",
+            "execution, tradability and transaction-cost rules",
+            "OOS window and reporting thresholds",
+        ],
+    }
+    return payload, dates
+
+
+def generate_v2_layer5_targets(
+    predictions: pd.DataFrame,
+    exposures: pd.DataFrame,
+    signal_dates: pd.DatetimeIndex,
+    execution_by_signal: pd.Series,
+    pretrade_by_signal: dict[pd.Timestamp, pd.Series],
+    industry_columns: list[str],
+    config: dict,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rebuild only loss-ladder layer 5 with the V2 turnover definition."""
+
+    limits, styles = optimizer_limits_for_layer(config, 5)
+    expected_column = str(config["d5"]["expected_return_column"])
+    cost_model = CostModel.from_config(config)
+    target_frames: list[pd.DataFrame] = []
+    audit_rows: list[dict[str, object]] = []
+    for signal_date in signal_dates:
+        signal_date = pd.Timestamp(signal_date).normalize()
+        execution_date = pd.Timestamp(execution_by_signal.loc[signal_date]).normalize()
+        cross = (
+            exposures.loc[exposures["trade_date"].eq(signal_date)]
+            .set_index("instrument")
+            .sort_index()
+        )
+        benchmark = pd.to_numeric(cross["benchmark_weight"], errors="coerce")
+        benchmark = benchmark / benchmark.sum()
+        observed = predictions.loc[predictions["sample_date"].eq(signal_date)]
+        unexpected = sorted(set(observed["instrument"]) - set(cross.index))
+        if unexpected:
+            raise ValueError(
+                f"{signal_date.date()} D9 V2 第5层含非当日成分："
+                + ", ".join(unexpected[:20])
+            )
+        mu = pd.to_numeric(
+            observed.set_index("instrument")[expected_column],
+            errors="coerce",
+        ).reindex(cross.index)
+        if mu.loc[mu.index.isin(observed["instrument"])].isna().any():
+            raise ValueError(f"{signal_date.date()} D9 V2 第5层 μ 含非有限值")
+        mu = mu.fillna(0.0)
+        cost_rate = symmetric_l1_cost_rate(
+            cost_model.commission_rate,
+            cost_model.transfer_fee_rate,
+            cost_model.stamp_rate(execution_date),
+        )
+        result = optimize_long_only_active_portfolio_v2(
+            mu,
+            benchmark,
+            pretrade_by_signal[signal_date],
+            cross,
+            industry_columns,
+            styles,
+            cost_rate=cost_rate,
+            limits=limits,
+            solver=str(config["d7"]["solver"]),
+        )
+        target_frames.append(
+            pd.DataFrame(
+                {
+                    "signal_date": signal_date,
+                    "execution_date": execution_date,
+                    "instrument": result.weights.index,
+                    "target_weight": result.weights.to_numpy(float),
+                }
+            )
+        )
+        audit_rows.append(
+            {
+                "layer": 5,
+                "signal_date": signal_date,
+                "solver_status": result.status,
+                "fallback_used": False,
+                "objective_value": result.objective_value,
+                "estimated_linear_cost": result.estimated_linear_cost,
+                "optimizer_single_sided_turnover": result.audit[
+                    "single_sided_turnover"
+                ],
+                "optimizer_mandatory_membership_turnover": result.audit[
+                    "mandatory_membership_turnover"
+                ],
+                "optimizer_discretionary_single_sided_turnover": result.audit[
+                    "discretionary_single_sided_turnover"
+                ],
+            }
+        )
+    return pd.concat(target_frames, ignore_index=True), pd.DataFrame(audit_rows)
+
+
 def generate_final_targets(
     predictions: pd.DataFrame,
     exposures: pd.DataFrame,
@@ -1119,7 +1549,11 @@ def generate_final_targets(
     calendar: pd.DatetimeIndex,
     industry_columns: list[str],
     config: dict,
+    *,
+    turnover_policy: str = "frozen_total",
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series]:
+    if turnover_policy not in {"frozen_total", "v2_discretionary"}:
+        raise ValueError(f"未知换手约束口径：{turnover_policy}")
     d6 = config["d6"]
     d7 = config["d7"]
     limits, style_columns = validate_d7_config(config)
@@ -1178,7 +1612,12 @@ def generate_final_targets(
             cost_model.transfer_fee_rate,
             cost_model.stamp_rate(execution_date),
         )
-        result = optimize_long_only_active_portfolio(
+        optimizer = (
+            optimize_long_only_active_portfolio_v2
+            if turnover_policy == "v2_discretionary"
+            else optimize_long_only_active_portfolio
+        )
+        result = optimizer(
             mu,
             benchmark,
             pretrade,
@@ -1239,6 +1678,18 @@ def generate_final_targets(
                 "maximum_style_active": audit["maximum_style_active"],
                 "single_sided_turnover": audit["single_sided_turnover"],
                 "forced_exit_weight": audit["forced_exit_weight"],
+                "mandatory_membership_turnover": audit.get(
+                    "mandatory_membership_turnover",
+                    audit["forced_exit_weight"],
+                ),
+                "discretionary_single_sided_turnover": audit.get(
+                    "discretionary_single_sided_turnover",
+                    max(
+                        float(audit["single_sided_turnover"])
+                        - float(audit["forced_exit_weight"]),
+                        0.0,
+                    ),
+                ),
                 "holdings": int((result.weights > limits.tolerance).sum()),
                 "all_constraints_passed": audit["passed"],
                 "annualized_tracking_error": te.annualized_tracking_error,
@@ -1273,8 +1724,10 @@ def generate_final_targets(
         previous_execution = execution_date
         if number == 1 or number % 20 == 0 or number == len(signal_dates):
             print(
-                f"D9 最终目标 {number}/{len(signal_dates)}：{signal_date.date()}，"
-                f"换手 {audit['single_sided_turnover']:.2%}，"
+                f"D9{' V2' if turnover_policy == 'v2_discretionary' else ''} "
+                f"最终目标 {number}/{len(signal_dates)}：{signal_date.date()}，"
+                f"总换手 {audit['single_sided_turnover']:.2%}，"
+                f"主动换手 {audit_rows[-1]['discretionary_single_sided_turnover']:.2%}，"
                 f"TE {te.annualized_tracking_error:.2%}",
                 flush=True,
             )
@@ -1319,6 +1772,9 @@ def yearly_performance(
                 "target_turnover_median": float(
                     selected["single_sided_turnover"].median()
                 ),
+                "target_discretionary_turnover_median": float(
+                    selected["discretionary_single_sided_turnover"].median()
+                ) if "discretionary_single_sided_turnover" in selected else None,
                 "actual_turnover_mean": float(
                     group.loc[group["signal_date"].notna(), "single_sided_turnover"].mean()
                 ),
@@ -1327,31 +1783,59 @@ def yearly_performance(
     return pd.DataFrame(rows)
 
 
-def write_report(summary: dict, reports_dir: Path) -> None:
+def write_report(
+    summary: dict, reports_dir: Path, *, variant: str = "original"
+) -> None:
+    is_v2 = variant == "v2"
     performance = summary["performance"]
     thresholds = summary["threshold_evaluation"]
     acceptance = summary["execution_acceptance"]
     recovery = summary["repository"].get("membership_recovery")
+    output_prefix = "d9_v2" if is_v2 else "d9"
     run_disclosure = (
+        "- 本报告属于 **D9-V2 事后方法修订**，不是原预注册 D9 的无条件验证。"
+        "原恢复运行已观察八折 Rank IC，但尚未生成组合收益、IR 或 NW-t；"
+        "原始与恢复失败清单均原样保留。"
+        if is_v2
+        else (
         "- 本次是受控工程恢复后的唯一一次统计性 OOS：原流程在读取收益、训练模型或生成绩效前，"
         "因 35 个权重快照日的成分元数据不一致而停止；原失败清单保持不变，恢复清单另行留存。"
         if recovery
         else "- 本次是 2019-01 至 2026-08 样本外的唯一一次正式运行；运行清单在读取 OOS 前落盘。"
+        )
     )
     lines = [
-        "# D9 滚动样本外报告",
+        "# D9-V2 滚动样本外报告" if is_v2 else "# D9 滚动样本外报告",
         "",
         f"**工程验收：{'通过' if acceptance['passed'] else '失败'}**",
-        f"**当前研究判定：{thresholds['decision']}**",
+        (
+            f"**V2 事后参考判定：{thresholds['decision']}**"
+            if is_v2 else f"**当前研究判定：{thresholds['decision']}**"
+        ),
         "",
         "## 冻结与一次性运行",
         "",
         f"- 冻结提交：`{summary['repository']['frozen_oos_commit']}`；运行分支：`{summary['repository']['branch']}`。",
         "- D1–D8 的代码与配置值均未改变；仅新增 D9 文件与 config.yaml 的 d9 节。",
         run_disclosure,
-        "- 恢复只修正中证500成分事件与历史证券代码映射；未读取既有 OOS 绩效、未改模型、参数、门槛或交易口径。"
-        if recovery
-        else "- 未发生工程恢复。",
+        (
+            "- V2 唯一口径修订：15% 约束主动单边换手；强制成分退出单独列示，"
+            "但仍计入总成交、目标函数线性成本与真实回测交易成本。"
+            if is_v2 else ""
+        ),
+        (
+            "- D15 必须并列披露：原始元数据失败、恢复后的优化不可行失败、"
+            "V2 可行性审计及本报告；V2 结论只能作为事后修订证据。"
+            if is_v2 else ""
+        ),
+        (
+            "- V2 继承已登记的成分元数据恢复；该恢复只修正指数事件与历史证券代码映射。"
+            if is_v2
+            else (
+                "- 恢复只修正中证500成分事件与历史证券代码映射；未读取既有 OOS 绩效、未改模型、参数、门槛或交易口径。"
+                if recovery else "- 未发生工程恢复。"
+            )
+        ),
         "- 冻结 D7 的事前 TE 中位数为 "
         f"{summary['frozen_d7_warning']['tracking_error_median']:.2%}，低于预注册 4% 下限；该失败原样保留，没有调参。",
         "",
@@ -1361,6 +1845,10 @@ def write_report(summary: dict, reports_dir: Path) -> None:
         "- 每年校准系数只使用该年以前已实现的走向前预测；训练集末尾标签跨界样本全部 purge。",
         "- 周频信号、T+1 全天 VWAP、PIT 中证500成分、月度权重自然漂移、D3 动态成本与可交易性规则全部复用冻结实现。",
         "- IR 与 t 值只由日收益先复合成月度收益后计算；NW-t 同时报 lag 3–6，并按其中最小值判定。",
+        (
+            "- V2 仍使用冻结的 15% 数值上限；总单边换手 = 强制调样换手 + 主动单边换手。"
+            if is_v2 else ""
+        ),
         "",
         "## 八折结果",
         "",
@@ -1385,7 +1873,10 @@ def write_report(summary: dict, reports_dir: Path) -> None:
             f"- Newey-West t（lag 3–6）：{performance['newey_west_t_by_lag']}；保守判定值 {performance['newey_west_t_minimum']:.3f}。",
             f"- 最大相对回撤：{performance['maximum_relative_drawdown']:.2%}。",
             "",
-            "## 六项预注册门槛",
+            (
+                "## 沿用原六项门槛（V2 事后参考）"
+                if is_v2 else "## 六项预注册门槛"
+            ),
             "",
             "| 门槛 | 实测 | 阈值 | 结果 |",
             "|---|---:|---:|:---:|",
@@ -1419,34 +1910,117 @@ def write_report(summary: dict, reports_dir: Path) -> None:
             "",
             "## 输出",
             "",
-            "- `reports/d9_run_manifest.json`、`reports/d9_recovery_manifest.json`（发生受控恢复时）",
-            "- `reports/d9_membership_recovery_audit.json`、`d9_summary.json`、`D9滚动样本外报告.md`",
-            "- `reports/d9_oos_predictions.parquet`、`d9_fold_audit.parquet`、`d9_calibration_schedule.parquet`",
-            "- `reports/d9_target_weights.parquet`、`d9_constraint_audit.parquet`、`d9_covariance_audit.parquet`",
-            "- `reports/d9_main_monthly.parquet`、`d9_yearly_performance.parquet`",
-            "- `reports/d9_ladder_summary.parquet` 与每层 targets/daily/trades",
-            "- `reports/d9_impact2x_daily.parquet`、`d9_impact2x_trades.parquet`",
+            "- `reports/d9_run_manifest.json`、`reports/d9_recovery_manifest.json` "
+            "及 V2 的独立 manifest（V2 时）",
+            f"- `reports/{output_prefix}_membership_recovery_audit.json`、"
+            f"`{output_prefix}_summary.json` 与版本化 Markdown 报告",
+            f"- `reports/{output_prefix}_oos_predictions.parquet`、"
+            f"`{output_prefix}_fold_audit.parquet`、"
+            f"`{output_prefix}_calibration_schedule.parquet`",
+            f"- `reports/{output_prefix}_target_weights.parquet`、"
+            f"`{output_prefix}_constraint_audit.parquet`、"
+            f"`{output_prefix}_covariance_audit.parquet`",
+            f"- `reports/{output_prefix}_main_monthly.parquet`、"
+            f"`{output_prefix}_yearly_performance.parquet`",
+            f"- `reports/{output_prefix}_ladder_summary.parquet` 与每层 targets/daily/trades",
+            f"- `reports/{output_prefix}_impact2x_daily.parquet`、"
+            f"`{output_prefix}_impact2x_trades.parquet`",
             "",
         ]
     )
-    path = reports_dir / "D9滚动样本外报告.md"
+    path = reports_dir / (
+        "D9_V2滚动样本外报告.md" if is_v2 else "D9滚动样本外报告.md"
+    )
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text("\n".join(lines), encoding="utf-8")
     temporary.replace(path)
+
+
+def execute_v2_feasibility_audit(
+    config: dict,
+    repository_audit: dict[str, object],
+) -> tuple[dict[str, object], pd.DataFrame]:
+    access = ResearchDataAccess(ROOT)
+    if access.mode != "oos":
+        raise OOSIntegrityError("D9 V2 可行性审计要求 OOS 数据保持已解封状态")
+    windows = config["windows"]
+    oos_start = pd.Timestamp(windows["oos_start"])
+    oos_end = pd.Timestamp(windows["oos_end"])
+    calendar = load_open_calendar(access, config, end_date=oos_end)
+    print("D9 V2 审计重建 PIT 权重与因果持仓路径……", flush=True)
+    weights, weight_audit = build_full_benchmark_weights(access, config, calendar)
+    tradability, _ = build_oos_tradability(access, config, weights, calendar)
+    dataset, feature_names, _, _ = build_model_dataset(
+        access, config, weights, calendar
+    )
+    predictions, fold_audit, _, _, _ = run_walk_forward_models(
+        dataset,
+        feature_names,
+        config,
+        artifact_prefix="d9_v2_feasibility",
+    )
+    signal_dates = pd.DatetimeIndex(
+        predictions["sample_date"].unique()
+    ).normalize().sort_values()
+    exposures, _, matrix_audit, industries, _, _ = build_oos_exposures(
+        access, config, weights, signal_dates
+    )
+    market, _ = prepare_oos_market(access, config, weights, tradability)
+    oos_calendar = calendar[(calendar >= oos_start) & (calendar <= oos_end)]
+    payload, dates = audit_v2_turnover_path(
+        predictions,
+        exposures,
+        market,
+        oos_calendar,
+        industries,
+        config,
+    )
+    payload.update(
+        {
+            "v2_head_commit": repository_audit["d9_head_commit"],
+            "frozen_oos_commit": repository_audit["frozen_oos_commit"],
+            "config_sha256": sha256(ROOT / "config/config.yaml"),
+            "original_manifest_sha256": repository_audit[
+                "v2_source_failures"
+            ]["original_manifest_sha256"],
+            "recovery_manifest_sha256": repository_audit[
+                "v2_source_failures"
+            ]["recovery_manifest_sha256"],
+            "membership_metadata_mismatch_days": int(
+                weight_audit["snapshot_mismatch_days"]
+            ),
+            "folds_replayed": int(len(fold_audit)),
+            "factor_dates_passed": int(matrix_audit["passed"].sum()),
+            "source_failure_validation": repository_audit[
+                "v2_source_failures"
+            ],
+        }
+    )
+    return payload, dates
 
 
 def execute_d9(
     config: dict,
     repository_audit: dict[str, object],
     upstream: dict[str, dict],
+    *,
+    variant: str = "original",
 ) -> dict:
+    if variant not in {"original", "v2"}:
+        raise ValueError(f"未知 D9 运行版本：{variant}")
+    is_v2 = variant == "v2"
+    artifact_prefix = "d9_v2" if is_v2 else "d9"
     access = ResearchDataAccess(ROOT)
     if access.mode != "oos":
         raise OOSIntegrityError(
             "正式 D9 运行前必须执行 seal_oos.py unseal --confirm UNSEAL_OOS"
         )
     reports = ROOT / config["data"]["reports_dir"]
-    processed_oos = ROOT / config["d9"]["processed_oos_dir"]
+    processed_oos = ROOT / (
+        config["d9"]["v2"]["processed_oos_dir"]
+        if is_v2
+        else config["d9"]["processed_oos_dir"]
+    )
     reports.mkdir(parents=True, exist_ok=True)
     processed_oos.mkdir(parents=True, exist_ok=True)
     windows = config["windows"]
@@ -1459,7 +2033,10 @@ def execute_d9(
     weights, weight_audit = build_full_benchmark_weights(
         access, config, calendar
     )
-    atomic_json(weight_audit, reports / "d9_membership_recovery_audit.json")
+    atomic_json(
+        weight_audit,
+        reports / f"{artifact_prefix}_membership_recovery_audit.json",
+    )
     tradability, tradability_audit = build_oos_tradability(
         access, config, weights, calendar
     )
@@ -1474,7 +2051,12 @@ def execute_d9(
         access, config, weights, calendar
     )
     predictions, fold_audit, calibrations, importance, model_meta = (
-        run_walk_forward_models(dataset, feature_names, config)
+        run_walk_forward_models(
+            dataset,
+            feature_names,
+            config,
+            artifact_prefix=artifact_prefix,
+        )
     )
     signal_dates = pd.DatetimeIndex(
         predictions["sample_date"].unique()
@@ -1496,6 +2078,9 @@ def execute_d9(
             oos_calendar,
             industries,
             config,
+            turnover_policy=(
+                "v2_discretionary" if is_v2 else "frozen_total"
+            ),
         )
     )
 
@@ -1521,16 +2106,27 @@ def execute_d9(
     }
     solver_frames: list[pd.DataFrame] = []
     for layer in [3, 4, 5]:
-        layer_target, solver = generate_optimized_layer_targets(
-            layer,
-            predictions,
-            exposures,
-            signal_dates,
-            execution_by_signal,
-            frozen_pretrade,
-            industries,
-            config,
-        )
+        if is_v2 and layer == 5:
+            layer_target, solver = generate_v2_layer5_targets(
+                predictions,
+                exposures,
+                signal_dates,
+                execution_by_signal,
+                frozen_pretrade,
+                industries,
+                config,
+            )
+        else:
+            layer_target, solver = generate_optimized_layer_targets(
+                layer,
+                predictions,
+                exposures,
+                signal_dates,
+                execution_by_signal,
+                frozen_pretrade,
+                industries,
+                config,
+            )
         layer_targets[layer] = layer_target
         solver_frames.append(solver)
     target_audit, ladder_factor_active = audit_all_layer_targets(
@@ -1544,6 +2140,13 @@ def execute_d9(
         [f"style_{name}" for name in config["d7"]["constrained_style_factors"]],
         float(config["d7"]["constraint_tolerance"]),
     )
+    target_audit["mandatory_membership_turnover"] = target_audit[
+        "forced_exit_weight"
+    ]
+    target_audit["discretionary_single_sided_turnover"] = (
+        target_audit["target_single_sided_turnover"]
+        - target_audit["forced_exit_weight"]
+    ).clip(lower=0.0)
     stock_returns = build_stock_returns(market)
     ex_ante_te = calculate_layer_tracking_error(
         layer_targets, exposures, stock_returns, signal_dates, config
@@ -1578,6 +2181,12 @@ def execute_d9(
             maximum_style_active=("maximum_style_active", "max"),
             maximum_target_turnover=("target_single_sided_turnover", "max"),
             target_turnover_median=("target_single_sided_turnover", "median"),
+            maximum_discretionary_turnover=(
+                "discretionary_single_sided_turnover", "max"
+            ),
+            discretionary_turnover_median=(
+                "discretionary_single_sided_turnover", "median"
+            ),
         )
         .reset_index()
     )
@@ -1644,13 +2253,24 @@ def execute_d9(
     tolerance = float(config["d7"]["constraint_tolerance"])
     solver_audit = pd.concat(solver_frames, ignore_index=True)
     execution = summarize_execution(main_trades, oos_calendar)
+    turnover_acceptance_column = (
+        "maximum_discretionary_turnover" if is_v2
+        else "maximum_target_turnover"
+    )
     execution_acceptance = {
         "frozen_repository_verified": True,
         "one_shot_manifest_started_before_oos_read": True,
         "controlled_recovery_protocol_validated": bool(
-            repository_audit.get("membership_recovery") is None
+            (
+                is_v2
+                and repository_audit.get("v2_source_failures", {}).get(
+                    "validated"
+                ) is True
+            )
+            or repository_audit.get("membership_recovery") is None
             or repository_audit["membership_recovery"].get("validated") is True
         ),
+        "post_oos_amendment_disclosed": True,
         "eight_folds_complete": bool(
             len(fold_audit) == int(config["d9"]["expected_fold_count"])
         ),
@@ -1682,7 +2302,9 @@ def execute_d9(
             <= float(config["d7"]["style_active_limit"]) + tolerance
         ),
         "turnover_constraint": bool(
-            target_summary.loc[target_summary["layer"].ge(5), "maximum_target_turnover"].max()
+            target_summary.loc[
+                target_summary["layer"].ge(5), turnover_acceptance_column
+            ].max()
             <= float(config["d7"]["single_sided_turnover_limit"]) + tolerance
         ),
         "stock_constraint": bool(
@@ -1705,6 +2327,9 @@ def execute_d9(
             "annualized_excess_return": float(row.annualized_excess_return),
             "ex_ante_te_median": float(row.ex_ante_te_median),
             "target_turnover_median": float(row.target_turnover_median),
+            "target_discretionary_turnover_median": float(
+                row.discretionary_turnover_median
+            ),
             "executed_turnover_mean": float(row.mean_rebalance_single_sided_turnover),
             "transaction_cost": float(row.total_transaction_cost),
             "impact_cost": float(row.impact_cost),
@@ -1714,11 +2339,35 @@ def execute_d9(
         for row in main_ladder.itertuples(index=False)
     ]
     summary = {
+        "version": "D9-V2" if is_v2 else "D9",
+        "classification": (
+            "post_oos_methodology_amendment" if is_v2
+            else "preregistered_oos"
+        ),
         "mode": access.mode,
         "oos_data_accessed": True,
         "oos_run_count": 1,
         "statistical_oos_run_count": 1,
+        "post_oos_v2_run_count": 1 if is_v2 else 0,
         "engineering_recovery": repository_audit.get("membership_recovery"),
+        "v2_source_failures": repository_audit.get("v2_source_failures"),
+        "methodology_amendment": (
+            {
+                "rank_ic_observed_before_amendment": True,
+                "portfolio_performance_observed_before_amendment": False,
+                "reason": "冻结总换手 15% 与指数强制调样退出发生确定性可行域冲突",
+                "changed_rule": (
+                    "15% 上限约束主动单边换手；强制成分退出单独列示，"
+                    "但仍计入总成交与全部交易成本"
+                ),
+                "numeric_limits_changed": False,
+                "model_or_threshold_parameters_changed": False,
+                "confirmatory_status": "不得表述为原预注册 D9 的无条件验证",
+                "d15_reporting": "原两次失败与 V2 结果并列披露",
+            }
+            if is_v2
+            else None
+        ),
         "repository": repository_audit,
         "window": {
             "design_start": str(design_start.date()),
@@ -1754,6 +2403,16 @@ def execute_d9(
             "maximum_industry_active": float(constraint_audit["maximum_industry_active"].max()),
             "maximum_style_active": float(constraint_audit["maximum_style_active"].max()),
             "maximum_target_single_sided_turnover": float(constraint_audit["single_sided_turnover"].max()),
+            "maximum_mandatory_membership_turnover": float(
+                constraint_audit["mandatory_membership_turnover"].max()
+            ),
+            "maximum_discretionary_single_sided_turnover": float(
+                constraint_audit["discretionary_single_sided_turnover"].max()
+            ),
+            "turnover_acceptance_basis": (
+                "discretionary_single_sided_turnover" if is_v2
+                else "total_single_sided_turnover"
+            ),
             "minimum_covariance_active_l1_coverage": float(constraint_audit["covariance_active_l1_coverage"].min()),
             "ex_ante_te_median": float(constraint_audit["annualized_tracking_error"].median()),
         },
@@ -1770,6 +2429,7 @@ def execute_d9(
             "tracking_error_median": float(upstream["d7"]["tracking_error"]["median"]),
             "tracking_error_acceptance_min": float(upstream["d7"]["tracking_error"]["acceptance_min"]),
             "parameters_changed": False,
+            "turnover_definition_changed_in_v2": bool(is_v2),
         },
         "yearly": fold_yearly.to_dict(orient="records"),
         "design_ladder": design_ladder,
@@ -1793,39 +2453,77 @@ def execute_d9(
         "label_end_timestamp",
         "weight_coverage",
     ]
-    atomic_parquet(predictions[keep_prediction], reports / "d9_oos_predictions.parquet")
-    atomic_parquet(fold_audit, reports / "d9_fold_audit.parquet")
-    atomic_parquet(calibrations, reports / "d9_calibration_schedule.parquet")
-    atomic_parquet(importance, reports / "d9_feature_importance.parquet")
-    atomic_parquet(feature_spec, reports / "d9_alpha158_spec.parquet")
-    atomic_parquet(label_coverage, reports / "d9_label_coverage.parquet")
-    atomic_parquet(exposures, reports / "d9_factor_exposures.parquet")
-    atomic_parquet(style_audit, reports / "d9_style_imputation.parquet")
-    atomic_parquet(matrix_audit, reports / "d9_factor_audit.parquet")
-    atomic_parquet(targets, reports / "d9_target_weights.parquet")
-    atomic_parquet(constraint_audit, reports / "d9_constraint_audit.parquet")
-    atomic_parquet(factor_active, reports / "d9_factor_active_exposures.parquet")
-    atomic_parquet(covariance_audit, reports / "d9_covariance_audit.parquet")
-    atomic_parquet(ladder, reports / "d9_ladder_summary.parquet")
+    atomic_parquet(
+        predictions[keep_prediction], reports / f"{artifact_prefix}_oos_predictions.parquet"
+    )
+    atomic_parquet(fold_audit, reports / f"{artifact_prefix}_fold_audit.parquet")
+    atomic_parquet(
+        calibrations, reports / f"{artifact_prefix}_calibration_schedule.parquet"
+    )
+    atomic_parquet(
+        importance, reports / f"{artifact_prefix}_feature_importance.parquet"
+    )
+    atomic_parquet(feature_spec, reports / f"{artifact_prefix}_alpha158_spec.parquet")
+    atomic_parquet(
+        label_coverage, reports / f"{artifact_prefix}_label_coverage.parquet"
+    )
+    atomic_parquet(exposures, reports / f"{artifact_prefix}_factor_exposures.parquet")
+    atomic_parquet(
+        style_audit, reports / f"{artifact_prefix}_style_imputation.parquet"
+    )
+    atomic_parquet(matrix_audit, reports / f"{artifact_prefix}_factor_audit.parquet")
+    atomic_parquet(targets, reports / f"{artifact_prefix}_target_weights.parquet")
+    atomic_parquet(
+        constraint_audit, reports / f"{artifact_prefix}_constraint_audit.parquet"
+    )
+    atomic_parquet(
+        factor_active, reports / f"{artifact_prefix}_factor_active_exposures.parquet"
+    )
+    atomic_parquet(
+        covariance_audit, reports / f"{artifact_prefix}_covariance_audit.parquet"
+    )
+    atomic_parquet(ladder, reports / f"{artifact_prefix}_ladder_summary.parquet")
     atomic_parquet(
         build_loss_deltas(ladder, capital=main_capital),
-        reports / "d9_loss_deltas.parquet",
+        reports / f"{artifact_prefix}_loss_deltas.parquet",
     )
-    atomic_parquet(target_audit, reports / "d9_ladder_target_audit.parquet")
-    atomic_parquet(ladder_factor_active, reports / "d9_ladder_factor_active.parquet")
-    atomic_parquet(ex_ante_te, reports / "d9_ladder_ex_ante_te.parquet")
-    atomic_parquet(solver_audit, reports / "d9_ladder_solver_audit.parquet")
+    atomic_parquet(
+        target_audit, reports / f"{artifact_prefix}_ladder_target_audit.parquet"
+    )
+    atomic_parquet(
+        ladder_factor_active,
+        reports / f"{artifact_prefix}_ladder_factor_active.parquet",
+    )
+    atomic_parquet(
+        ex_ante_te, reports / f"{artifact_prefix}_ladder_ex_ante_te.parquet"
+    )
+    atomic_parquet(
+        solver_audit, reports / f"{artifact_prefix}_ladder_solver_audit.parquet"
+    )
     for layer in range(7):
-        atomic_parquet(layer_targets[layer], reports / f"d9_layer_{layer}_targets.parquet")
-        atomic_parquet(daily_by_layer[layer], reports / f"d9_layer_{layer}_daily.parquet")
-        atomic_parquet(trades_by_layer[layer], reports / f"d9_layer_{layer}_trades.parquet")
-    atomic_parquet(main_daily, reports / "d9_main_daily.parquet")
-    atomic_parquet(monthly, reports / "d9_main_monthly.parquet")
-    atomic_parquet(fold_yearly, reports / "d9_yearly_performance.parquet")
-    atomic_parquet(stress_daily, reports / "d9_impact2x_daily.parquet")
-    atomic_parquet(stress_result.trades, reports / "d9_impact2x_trades.parquet")
-    atomic_json(summary, reports / "d9_summary.json")
-    write_report(summary, reports)
+        atomic_parquet(
+            layer_targets[layer],
+            reports / f"{artifact_prefix}_layer_{layer}_targets.parquet",
+        )
+        atomic_parquet(
+            daily_by_layer[layer],
+            reports / f"{artifact_prefix}_layer_{layer}_daily.parquet",
+        )
+        atomic_parquet(
+            trades_by_layer[layer],
+            reports / f"{artifact_prefix}_layer_{layer}_trades.parquet",
+        )
+    atomic_parquet(main_daily, reports / f"{artifact_prefix}_main_daily.parquet")
+    atomic_parquet(monthly, reports / f"{artifact_prefix}_main_monthly.parquet")
+    atomic_parquet(
+        fold_yearly, reports / f"{artifact_prefix}_yearly_performance.parquet"
+    )
+    atomic_parquet(stress_daily, reports / f"{artifact_prefix}_impact2x_daily.parquet")
+    atomic_parquet(
+        stress_result.trades, reports / f"{artifact_prefix}_impact2x_trades.parquet"
+    )
+    atomic_json(summary, reports / f"{artifact_prefix}_summary.json")
+    write_report(summary, reports, variant=variant)
     return summary
 
 
@@ -1849,15 +2547,27 @@ def main() -> None:
         action="store_true",
         help="保留原始失败清单，以同一次统计性 OOS 做一次受控成分恢复",
     )
+    mode.add_argument(
+        "--v2-feasibility-audit",
+        action="store_true",
+        help="复现冻结优化失败并验证 V2 全日期可行性，不生成组合绩效",
+    )
+    mode.add_argument(
+        "--run-v2",
+        action="store_true",
+        help="以独立清单运行已披露的 D9-V2 事后方法修订",
+    )
     parser.add_argument(
         "--confirm",
         default="",
-        help="受控恢复确认口令",
+        help="受控恢复或 D9-V2 正式运行确认口令",
     )
     args = parser.parse_args()
     config = load_config()
-    if args.confirm and not args.resume_membership_recovery:
-        parser.error("--confirm 只能与 --resume-membership-recovery 一起使用")
+    if args.confirm and not (args.resume_membership_recovery or args.run_v2):
+        parser.error(
+            "--confirm 只能与 --resume-membership-recovery 或 --run-v2 一起使用"
+        )
     recovery_mode = bool(
         args.recovery_preflight or args.resume_membership_recovery
     )
@@ -1869,8 +2579,22 @@ def main() -> None:
             raise OOSIntegrityError(
                 "受控恢复必须显式传入 --confirm " + expected_confirmation
             )
+    if args.run_v2:
+        expected_confirmation = str(config["d9"]["v2"]["confirmation"])
+        if args.confirm != expected_confirmation:
+            raise OOSIntegrityError(
+                "D9-V2 正式运行必须显式传入 --confirm "
+                + expected_confirmation
+            )
+    v2_stage = (
+        "audit" if args.v2_feasibility_audit
+        else "run" if args.run_v2
+        else None
+    )
     repository, upstream = preflight(
-        config, membership_recovery=recovery_mode
+        config,
+        membership_recovery=recovery_mode,
+        v2_stage=v2_stage,
     )
     if args.preflight:
         print("D9 预检：通过")
@@ -1904,6 +2628,35 @@ def main() -> None:
             "下一步：python scripts/d9_pipeline.py "
             "--resume-membership-recovery --confirm "
             f"{config['d9']['membership_recovery']['confirmation']}"
+        )
+        return
+    if args.v2_feasibility_audit:
+        if repository["window_mode"] != "oos":
+            raise OOSIntegrityError("D9 V2 可行性审计要求 OOS 数据保持已解封状态")
+        payload, dates = execute_v2_feasibility_audit(config, repository)
+        dates_path = ROOT / config["d9"]["v2"]["feasibility_dates"]
+        audit_path = ROOT / config["d9"]["v2"]["feasibility_audit"]
+        atomic_parquet(dates, dates_path)
+        payload["feasibility_dates"] = str(dates_path.relative_to(ROOT))
+        payload["feasibility_dates_sha256"] = sha256(dates_path)
+        atomic_json(payload, audit_path)
+        failure = payload["frozen_first_failure"]
+        print("D9 V2 可行性审计：通过")
+        print(
+            f"冻结口径首次不可行：信号日 {failure['signal_date']}，"
+            f"执行日 {failure['execution_date']}"
+        )
+        print(
+            f"最小总换手 {failure['minimum_total_single_sided_turnover']:.2%}；"
+            f"其中强制调样 {failure['mandatory_membership_turnover']:.2%}，"
+            f"最小主动换手 {failure['minimum_discretionary_single_sided_turnover']:.2%}"
+        )
+        print(
+            "已验证 V2 全部目标日可行；未运行组合回测，未生成收益、IR 或 NW-t。"
+        )
+        print(
+            "下一步：python scripts/d9_pipeline.py --run-v2 --confirm "
+            f"{config['d9']['v2']['confirmation']}"
         )
         return
     if repository["window_mode"] != "oos":
@@ -1948,6 +2701,38 @@ def main() -> None:
             "oos_end": config["windows"]["oos_end"],
             "message": "同一次统计性 OOS 的受控工程恢复已启动；不得再次恢复",
         }
+    elif args.run_v2:
+        manifest_path = ROOT / config["d9"]["v2"]["run_manifest"]
+        source = repository["v2_source_failures"]
+        manifest = {
+            "status": "started",
+            "version": "D9-V2",
+            "classification": "post_oos_methodology_amendment",
+            "v2_run_number": 1,
+            "statistical_oos_run_number": 1,
+            "rank_ic_observed_before_v2": True,
+            "portfolio_performance_observed_before_v2": False,
+            "original_manifest": source["original_manifest"],
+            "original_manifest_sha256": source["original_manifest_sha256"],
+            "recovery_manifest": source["recovery_manifest"],
+            "recovery_manifest_sha256": source["recovery_manifest_sha256"],
+            "feasibility_audit": source["feasibility_audit"],
+            "feasibility_audit_sha256": source["feasibility_audit_sha256"],
+            "source_manifests_preserved": True,
+            "frozen_oos_commit": repository["frozen_oos_commit"],
+            "v2_head_commit": repository["d9_head_commit"],
+            "v2_config_sha256": sha256(ROOT / "config/config.yaml"),
+            "changed_rule": (
+                "15% 上限约束主动单边换手；强制成分退出仍计入总成交和成本"
+            ),
+            "model_or_threshold_parameters_changed": False,
+            "oos_start": config["windows"]["oos_start"],
+            "oos_end": config["windows"]["oos_end"],
+            "message": (
+                "D9-V2 事后方法修订已启动；必须与原两次失败并列披露，"
+                "不得表述为原预注册 D9 的无条件验证"
+            ),
+        }
     else:
         manifest_path = ROOT / config["d9"]["run_manifest"]
         manifest = {
@@ -1962,7 +2747,12 @@ def main() -> None:
         }
     atomic_json(manifest, manifest_path)
     try:
-        summary = execute_d9(config, repository, upstream)
+        summary = execute_d9(
+            config,
+            repository,
+            upstream,
+            variant="v2" if args.run_v2 else "original",
+        )
     except BaseException as exc:
         manifest.update(
             {
@@ -1983,21 +2773,34 @@ def main() -> None:
                 "passed"
             ],
             "decision": summary["threshold_evaluation"]["decision"],
-            "summary_file": "reports/d9_summary.json",
+            "decision_interpretation": (
+                "post_oos_reference_only" if args.run_v2
+                else "preregistered_oos"
+            ),
+            "summary_file": (
+                "reports/d9_v2_summary.json" if args.run_v2
+                else "reports/d9_summary.json"
+            ),
         }
     )
     atomic_json(manifest, manifest_path)
     engineering_status = (
         "通过" if summary["execution_acceptance"]["passed"] else "失败"
     )
-    print(f"D9 工程验收：{engineering_status}")
+    run_label = "D9-V2" if args.run_v2 else "D9"
+    print(f"{run_label} 工程验收：{engineering_status}")
     print(
         f"费后年化超额 {summary['performance']['annualized_excess_return']:.2%}；"
         f"IR {summary['performance']['information_ratio']:.3f}；"
         f"NW-t {summary['performance']['newey_west_t_minimum']:.3f}"
     )
-    print(f"当前判定：{summary['threshold_evaluation']['decision']}")
-    print(f"报告：{ROOT / config['data']['reports_dir'] / 'D9滚动样本外报告.md'}")
+    decision_label = "V2 事后参考判定" if args.run_v2 else "当前判定"
+    print(f"{decision_label}：{summary['threshold_evaluation']['decision']}")
+    report_name = (
+        "D9_V2滚动样本外报告.md" if args.run_v2
+        else "D9滚动样本外报告.md"
+    )
+    print(f"报告：{ROOT / config['data']['reports_dir'] / report_name}")
 
 
 if __name__ == "__main__":

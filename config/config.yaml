@@ -265,6 +265,33 @@ d9:
         target_instrument: SH600068
         reason: 9月30日锚点已含9月28日后继证券；9月13日合成快照仍应保留当时有效的葛洲坝
         evidence: https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600068.phtml
+  v2:
+    classification: post_oos_methodology_amendment
+    confirmation: RUN_D9_V2_POST_OOS_AMENDMENT
+    processed_oos_dir: data/processed/oos_v2
+    feasibility_audit: reports/d9_v2_feasibility_audit.json
+    feasibility_dates: reports/d9_v2_feasibility_dates.parquet
+    run_manifest: reports/d9_v2_manifest.json
+    summary: reports/d9_v2_summary.json
+    original_manifest_sha256: dd513b90e0c7490eeebeb78e3822aff1076f523e8e28be82eac5b3f59caed9b3
+    recovery_manifest_sha256: f702eb124039f6ee43c2a2bda87865f03a339caafecf56b224b03f5f21b59c1a
+    recovery_failure:
+      status: failed
+      recovery_attempt_number: 1
+      oos_run_number: 1
+      statistical_oos_run_number: 1
+      original_manifest: reports/d9_run_manifest.json
+      original_manifest_sha256: dd513b90e0c7490eeebeb78e3822aff1076f523e8e28be82eac5b3f59caed9b3
+      frozen_oos_commit: 14cf2dda745840b8bfd614b504b39b1ef66617e0
+      recovery_d9_head_commit: 249ede7f5c5b3f8e2cda28248ce12c9e842ade24
+      recovery_config_sha256: b1917b5a8390c9396c5c0d79082d54295897a58239db74dd6b5342da267ad0e3
+      scope: benchmark_membership_metadata_only
+      performance_observed_before_original_failure: false
+      model_or_threshold_parameters_changed: false
+      original_manifest_preserved: true
+      error_type: PortfolioOptimizationError
+      error: CLARABEL 未得到严格 optimal，status=infeasible；D7 禁止 fallback
+      rerun_allowed: false
   expected_fold_count: 8
   main_capital_cny: 10000000
   newey_west_lags:

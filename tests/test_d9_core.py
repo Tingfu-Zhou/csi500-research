@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from scripts.pull_d9_oos import validate_annual_frame
+from src.d7_core import OptimizationLimits
 from src.d9_core import (
     OOSIntegrityError,
     OOSThresholds,
@@ -12,12 +13,15 @@ from src.d9_core import (
     apply_identifier_alias_removals,
     apply_snapshot_instrument_bridges,
     assert_frozen_config_unchanged,
+    audit_minimum_turnover_feasibility,
     evaluate_oos_thresholds,
     maximum_relative_drawdown,
     newey_west_t_statistic,
+    optimize_long_only_active_portfolio_v2,
     summarize_monthly_performance,
     validate_membership_recovery_failure,
     validate_oos_fold_records,
+    validate_v2_source_failures,
 )
 
 
@@ -357,3 +361,106 @@ def test_membership_recovery_accepts_only_exact_registered_failure() -> None:
     changed = {**manifest, "error": "another failure"}
     with pytest.raises(OOSIntegrityError, match="不一致"):
         validate_membership_recovery_failure(changed, expected)
+
+
+def v2_turnover_problem() -> tuple[
+    pd.Series, pd.Series, pd.Series, pd.DataFrame, OptimizationLimits
+]:
+    instruments = pd.Index([f"S{i:02d}" for i in range(12)], name="instrument")
+    benchmark = pd.Series(1.0 / len(instruments), index=instruments)
+    pretrade = benchmark * 0.80
+    pretrade.loc["REMOVED"] = 0.20
+    mu = pd.Series(np.linspace(-0.004, 0.004, len(instruments)), index=instruments)
+    exposures = pd.DataFrame(index=instruments)
+    for number in range(3):
+        exposures[f"industry_{number}"] = (
+            np.arange(len(instruments)) // 4 == number
+        ).astype(float)
+    size = np.linspace(-1.5, 1.5, len(instruments))
+    exposures["style_Size"] = (size - size.mean()) / size.std(ddof=0)
+    exposures["style_Beta"] = np.tile([-1.0, 1.0], len(instruments) // 2)
+    limits = OptimizationLimits(
+        stock_active=0.015,
+        industry_active=0.02,
+        style_active=0.30,
+        single_sided_turnover=0.15,
+        tolerance=1e-6,
+    )
+    return mu, benchmark, pretrade, exposures, limits
+
+
+def test_v2_turnover_audit_isolates_mandatory_membership_exit() -> None:
+    mu, benchmark, pretrade, exposures, limits = v2_turnover_problem()
+    audit = audit_minimum_turnover_feasibility(
+        mu,
+        benchmark,
+        pretrade,
+        exposures,
+        ["industry_0", "industry_1", "industry_2"],
+        ["style_Size", "style_Beta"],
+        limits=limits,
+    )
+    assert audit["mandatory_membership_turnover"] == pytest.approx(0.20)
+    assert audit["minimum_total_single_sided_turnover"] == pytest.approx(
+        0.20, abs=1e-6
+    )
+    assert audit["minimum_discretionary_single_sided_turnover"] == pytest.approx(
+        0.0, abs=1e-6
+    )
+    assert audit["frozen_rule_feasible"] is False
+    assert audit["v2_rule_feasible"] is True
+
+
+def test_v2_optimizer_caps_discretionary_but_charges_total_turnover() -> None:
+    mu, benchmark, pretrade, exposures, limits = v2_turnover_problem()
+    result = optimize_long_only_active_portfolio_v2(
+        mu,
+        benchmark,
+        pretrade,
+        exposures,
+        ["industry_0", "industry_1", "industry_2"],
+        ["style_Size", "style_Beta"],
+        cost_rate=0.00066,
+        limits=limits,
+    )
+    audit = result.audit
+    assert audit["passed"]
+    assert audit["mandatory_membership_turnover"] == pytest.approx(0.20)
+    assert audit["discretionary_single_sided_turnover"] <= 0.15 + 1e-6
+    assert audit["single_sided_turnover"] <= 0.35 + 1e-6
+    assert result.estimated_linear_cost == pytest.approx(
+        0.00066 * audit["total_l1_trade"]
+    )
+
+
+def test_v2_source_failure_validation_requires_exact_recovery_failure() -> None:
+    original_expected = {"status": "failed", "error_type": "ValueError"}
+    recovery_expected = {
+        "status": "failed",
+        "error_type": "PortfolioOptimizationError",
+        "rerun_allowed": False,
+    }
+    original = dict(original_expected)
+    recovery = {
+        **recovery_expected,
+        "traceback": (
+            "generate_final_targets optimize_long_only_active_portfolio "
+            "PortfolioOptimizationError status=infeasible"
+        ),
+    }
+    audit = validate_v2_source_failures(
+        original,
+        recovery,
+        expected_original=original_expected,
+        expected_recovery=recovery_expected,
+    )
+    assert audit["classification"] == "post_oos_methodology_amendment"
+    assert audit["rank_ic_observed_before_v2"] is True
+    changed = {**recovery, "rerun_allowed": True}
+    with pytest.raises(OOSIntegrityError, match="不一致"):
+        validate_v2_source_failures(
+            original,
+            changed,
+            expected_original=original_expected,
+            expected_recovery=recovery_expected,
+        )
