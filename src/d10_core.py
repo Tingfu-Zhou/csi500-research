@@ -58,6 +58,23 @@ def price_panels(market):
             vwap.combine_first(close).combine_first(previous_close))
 
 
+def assert_long_only(position_values, date, label):
+    """D3 states its long-only contract in CURRENCY, so assert it there.
+
+    match_target_orders refuses a pretrade position below -1e-8 CNY. A share
+    count is not scale free: the same residue is 43x less money on a 1.5 CNY
+    stock than the contract allows, and per E05 a full exit routinely leaves a
+    negative unit residue of order u*2^-53. Bounding units instead of currency
+    therefore rejects cheap stocks held in size -- exactly the layer-4 shape,
+    which carries no per-name cap -- while the ledger D3 produced satisfies the
+    currency form by construction.
+    """
+    short = position_values[position_values < -1e-8]
+    if len(short):
+        detail = ", ".join(f"{name}={value:.12g}" for name, value in short.head(5).items())
+        raise DiagnosticError(f"{date}: {label} below D3's -1e-8 CNY long-only contract: {detail}")
+
+
 def tradable_fill_range(desired, position, daily_amount, can_buy, can_sell, participation_limit):
     """The closed interval of net fills D3's matcher could have produced.
 
@@ -142,6 +159,7 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
             live = values / pre_nav
             pretrade[signal] = live[live.abs() > 0].copy()
             pretrade[signal].loc["CASH"] = cash / pre_nav
+            assert_long_only(values, date, "pretrade position")
             require_close(g.pretrade_weight, live.reindex(g.index), f"{date}: logged pretrade weights")
             signed = g.executed_trade_amount.astype(float)
             nonzero = signed.ne(0)
@@ -196,8 +214,9 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
             # Same representational tolerance as D3; no economic cash injection.
             if -max(1e-8, pre_nav * 1e-12) <= cash < 0:
                 cash = 0.0
-            if cash < 0 or (units < -1e-10).any():
-                raise DiagnosticError("negative reconstructed cash or units")
+            if cash < 0:
+                raise DiagnosticError(f"{date}: negative reconstructed cash {cash:.12g}")
+            assert_long_only(units * ep.fillna(0), date, "post-trade position")
             turnover = 0.5 * float(signed.abs().sum()) / pre_nav
         trade_pnl = float((tw * (mp / ep - 1).fillna(0)).sum()) * prev_nav
         nav = float(cash + (units * mp.fillna(0)).sum())

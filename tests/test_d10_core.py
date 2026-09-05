@@ -15,7 +15,7 @@ from src.d8_core import summarize_backtest_performance
 from src.d10_core import (DiagnosticError, align_stress_daily, attribute_executed_path,
     executed_turnover_split, half_l1, linked_monthly, path_gross_net, price_panels,
     reconstruct_executed_path, require_close, stress_schedule, tradable_fill_range,
-    turnover_split, wls_cross_section)
+    assert_long_only, turnover_split, wls_cross_section)
 from src.d10_io import (D10Output, assert_snapshot_unchanged, git_blob, snapshot_inputs, verify_repository)
 
 
@@ -81,6 +81,27 @@ def test_corrupted_order_cost_is_detected_independently_of_nav():
     result.trades.loc[0, "stamp_duty_cost"] += 1
     with pytest.raises(DiagnosticError, match="stamp_duty_cost"):
         reconstruct_executed_path(daily, result.trades, market, 10_000, model)
+
+
+def test_long_only_contract_is_asserted_in_currency_not_share_count():
+    """D3 refuses a position below -1e-8 CNY; a share count is not scale free.
+
+    A 1.5 CNY stock held at 1.5m CNY carries 1e6 units, so the float64 residue
+    of a full exit can pass -1e-10 UNITS while being worth -2e-10 CNY, which is
+    43x inside D3's own contract. Bounding units rejects that ledger; bounding
+    currency, as D3 states it, accepts exactly what D3 produced.
+    """
+    price, position = 1.5, 1_500_000.0
+    units = position / price
+    residue = -1.164e-10                       # observed scale of u - fl(fl(u*p)/p)
+    assert abs(residue) > 1e-10                # the old share-count guard would have raised
+    assert abs(residue * price) < 1e-8         # yet D3's currency contract is untouched
+    assert_long_only(pd.Series({"CHEAP": residue * price, "HELD": position}), "2018-05-07", "pretrade position")
+    with pytest.raises(DiagnosticError, match="long-only contract"):
+        assert_long_only(pd.Series({"SHORTED": -1e-7}), "2018-05-07", "pretrade position")
+    with pytest.raises(DiagnosticError, match="SHORTED=-12345"):
+        assert_long_only(pd.Series({"OK": 5.0, "SHORTED": -12345.0}), "2018-05-07", "post-trade position")
+    assert units > 4.5e5  # only this many units makes the residue reach the old threshold
 
 
 def test_negative_dust_position_fills_through_the_sell_leg_not_a_forbidden_buy():
