@@ -11,6 +11,167 @@ class OOSIntegrityError(RuntimeError):
     """Raised when the frozen one-shot OOS contract is violated."""
 
 
+def validate_membership_recovery_failure(
+    manifest: Mapping[str, object],
+    expected: Mapping[str, object],
+) -> dict[str, object]:
+    """Authorize only the exact pre-return membership failure registered in config."""
+
+    mismatches = {
+        key: {"expected": value, "actual": manifest.get(key)}
+        for key, value in expected.items()
+        if manifest.get(key) != value
+    }
+    if mismatches:
+        raise OOSIntegrityError(
+            "D9 原始失败清单与受控恢复登记不一致：" + str(mismatches)
+        )
+    original_traceback = str(manifest.get("traceback", ""))
+    if not original_traceback.strip():
+        raise OOSIntegrityError("D9 原始失败清单缺少 traceback，不得受控恢复")
+    if "build_full_benchmark_weights" not in original_traceback:
+        raise OOSIntegrityError("D9 原始失败不在成分权重构建阶段，不得受控恢复")
+    return {
+        "validated": True,
+        "status": manifest["status"],
+        "oos_run_number": int(manifest["oos_run_number"]),
+        "failed_d9_head_commit": str(manifest["d9_head_commit"]),
+        "failed_config_sha256": str(manifest["config_sha256"]),
+        "error_type": str(manifest["error_type"]),
+        "error": str(manifest["error"]),
+        "performance_observed_before_failure": False,
+    }
+
+
+def _interval_covers(
+    intervals: pd.DataFrame,
+    instrument: str,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+) -> bool:
+    rows = intervals.loc[
+        intervals["instrument"].astype(str).eq(instrument)
+        & intervals["end_date"].ge(start)
+        & intervals["start_date"].le(end),
+        ["start_date", "end_date"],
+    ].sort_values("start_date")
+    cursor = start
+    for row in rows.itertuples(index=False):
+        left = max(pd.Timestamp(row.start_date).normalize(), start)
+        right = min(pd.Timestamp(row.end_date).normalize(), end)
+        if left > cursor:
+            return False
+        cursor = max(cursor, right + pd.Timedelta(days=1))
+        if cursor > end:
+            return True
+    return cursor > end
+
+
+def apply_identifier_alias_removals(
+    intervals: pd.DataFrame,
+    removals: Iterable[Mapping[str, object]],
+) -> tuple[pd.DataFrame, list[dict[str, object]]]:
+    """Remove a duplicate historical identifier while retaining its canonical peer."""
+
+    required = {"instrument", "start_date", "end_date"}
+    missing = required - set(intervals.columns)
+    if missing:
+        raise ValueError(f"成分区间缺少字段：{sorted(missing)}")
+    result = intervals.copy()
+    result["start_date"] = pd.to_datetime(result["start_date"]).dt.normalize()
+    result["end_date"] = pd.to_datetime(result["end_date"]).dt.normalize()
+    audits: list[dict[str, object]] = []
+    for number, removal in enumerate(removals, start=1):
+        alias = str(removal["alias_instrument"])
+        canonical = str(removal["canonical_instrument"])
+        start = pd.Timestamp(removal["effective_start"]).normalize()
+        end = pd.Timestamp(removal["effective_end"]).normalize()
+        if alias == canonical or start > end:
+            raise ValueError(f"第 {number} 条标识别名删除规则无效")
+        if not _interval_covers(result, canonical, start, end):
+            raise ValueError(
+                f"规范标识 {canonical} 未完整覆盖 {start.date()} 至 {end.date()}"
+            )
+        mask = (
+            result["instrument"].astype(str).eq(alias)
+            & result["end_date"].ge(start)
+            & result["start_date"].le(end)
+        )
+        affected = result.loc[mask].copy()
+        if affected.empty:
+            raise ValueError(f"标识别名 {alias} 在删除窗口内没有成分区间")
+        kept = result.loc[~mask].copy()
+        pieces: list[dict[str, object]] = []
+        for row in affected.to_dict(orient="records"):
+            if row["start_date"] < start:
+                before = dict(row)
+                before["end_date"] = start - pd.Timedelta(days=1)
+                pieces.append(before)
+            if row["end_date"] > end:
+                after = dict(row)
+                after["start_date"] = end + pd.Timedelta(days=1)
+                pieces.append(after)
+        if pieces:
+            kept = pd.concat([kept, pd.DataFrame(pieces)], ignore_index=True)
+        result = kept.sort_values(["instrument", "start_date", "end_date"]).reset_index(
+            drop=True
+        )
+        audits.append(
+            {
+                "rule_number": number,
+                "alias_instrument": alias,
+                "canonical_instrument": canonical,
+                "effective_start": str(start.date()),
+                "effective_end": str(end.date()),
+                "removed_interval_rows": int(len(affected)),
+                "reason": str(removal.get("reason", "")),
+                "evidence": str(removal.get("evidence", "")),
+            }
+        )
+    return result, audits
+
+
+def apply_snapshot_instrument_bridges(
+    snapshots: pd.DataFrame,
+    bridges: Iterable[Mapping[str, object]],
+) -> tuple[pd.DataFrame, list[dict[str, object]]]:
+    """Bridge a later successor back to its predecessor in one synthetic snapshot."""
+
+    result = snapshots.copy()
+    result["trade_date"] = pd.to_datetime(result["trade_date"]).dt.normalize()
+    audits: list[dict[str, object]] = []
+    for number, bridge in enumerate(bridges, start=1):
+        date = pd.Timestamp(bridge["trade_date"]).normalize()
+        source = str(bridge["source_instrument"])
+        target = str(bridge["target_instrument"])
+        on_date = result["trade_date"].eq(date)
+        source_mask = on_date & result["instrument"].astype(str).eq(source)
+        target_mask = on_date & result["instrument"].astype(str).eq(target)
+        if int(source_mask.sum()) != 1 or target_mask.any():
+            raise ValueError(
+                f"第 {number} 条合成快照桥接要求来源恰好一条且目标不存在"
+            )
+        if "snapshot_origin" in result.columns:
+            origin = str(result.loc[source_mask, "snapshot_origin"].iloc[0])
+            if origin != "backcast_membership_correction":
+                raise ValueError("合成快照桥接不得修改 Tushare 原始快照")
+        result.loc[source_mask, "instrument"] = target
+        audits.append(
+            {
+                "rule_number": number,
+                "trade_date": str(date.date()),
+                "source_instrument": source,
+                "target_instrument": target,
+                "weight_preserved": True,
+                "reason": str(bridge.get("reason", "")),
+                "evidence": str(bridge.get("evidence", "")),
+            }
+        )
+    if result.duplicated(["trade_date", "instrument"]).any():
+        raise ValueError("合成快照桥接后出现重复股票")
+    return result, audits
+
+
 @dataclass(frozen=True)
 class OOSThresholds:
     annualized_excess_return_min: float

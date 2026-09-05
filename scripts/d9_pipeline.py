@@ -105,9 +105,12 @@ from src.d8_core import (  # noqa: E402
 from src.d9_core import (  # noqa: E402
     OOSIntegrityError,
     OOSThresholds,
+    apply_identifier_alias_removals,
+    apply_snapshot_instrument_bridges,
     assert_frozen_config_unchanged,
     evaluate_oos_thresholds,
     summarize_monthly_performance,
+    validate_membership_recovery_failure,
     validate_oos_fold_records,
 )
 from src.data_access import ResearchDataAccess  # noqa: E402
@@ -270,15 +273,39 @@ def required_data_paths(config: dict, mode: str) -> list[Path]:
     return paths
 
 
-def preflight(config: dict) -> tuple[dict[str, object], dict[str, dict]]:
+def preflight(
+    config: dict, *, membership_recovery: bool = False
+) -> tuple[dict[str, object], dict[str, dict]]:
     repository = verify_frozen_repository(config)
     upstream = require_upstream_artifacts(config)
     access = ResearchDataAccess(ROOT)
     manifest = ROOT / config["d9"]["run_manifest"]
     summary = ROOT / config["data"]["reports_dir"] / "d9_summary.json"
-    if manifest.exists() or summary.exists():
+    recovery_audit: dict[str, object] | None = None
+    if membership_recovery:
+        recovery = config["d9"]["membership_recovery"]
+        recovery_manifest = ROOT / recovery["recovery_manifest"]
+        if not manifest.exists():
+            raise OOSIntegrityError("缺少原始 D9 失败清单，不得受控恢复")
+        if summary.exists() or recovery_manifest.exists():
+            raise OOSIntegrityError("检测到 D9 结果或恢复清单，拒绝再次恢复")
+        original_payload = json.loads(manifest.read_text(encoding="utf-8"))
+        recovery_audit = validate_membership_recovery_failure(
+            original_payload, recovery["original_failure"]
+        )
+        recovery_audit.update(
+            {
+                "original_manifest": str(manifest.relative_to(ROOT)),
+                "original_manifest_sha256": sha256(manifest),
+                "recovery_manifest": str(recovery_manifest.relative_to(ROOT)),
+                "original_manifest_preserved": True,
+                "scope": "benchmark_membership_metadata_only",
+            }
+        )
+    elif manifest.exists() or summary.exists():
         raise OOSIntegrityError(
-            "检测到 D9 运行记录或结果；样本外只允许运行一次，拒绝再次启动"
+            "检测到 D9 运行记录或结果；样本外只允许运行一次，拒绝再次启动。"
+            "若且仅若这是已登记的 35 日成分失败，请按运行说明使用受控恢复命令"
         )
     missing = [
         str(path)
@@ -335,11 +362,12 @@ def preflight(config: dict) -> tuple[dict[str, object], dict[str, dict]]:
         {
             **repository,
             "window_mode": access.mode,
-            "run_manifest_absent": True,
+            "run_manifest_absent": not manifest.exists(),
             "required_files_present": True,
             "dependencies_present": True,
             "dependency_versions": installed_versions,
             "dependency_versions_match_freeze": True,
+            "membership_recovery": recovery_audit,
         },
         upstream,
     )
@@ -390,8 +418,17 @@ def build_full_benchmark_weights(
     oos_end = pd.Timestamp(windows["oos_end"])
     raw = Path(config["data"]["tushare_raw_dir"])
     intervals = load_intervals(config, oos_end)
-    intervals, correction_audit = apply_membership_replacements(
-        intervals, config["universe"].get("membership_replacements", [])
+    frozen_replacements = config["universe"].get("membership_replacements", [])
+    recovery = config["d9"].get("membership_recovery", {})
+    recovery_replacements = recovery.get("membership_replacements", [])
+    intervals, frozen_correction_audit = apply_membership_replacements(
+        intervals, frozen_replacements
+    )
+    intervals, recovery_correction_audit = apply_membership_replacements(
+        intervals, recovery_replacements
+    )
+    intervals, alias_audit = apply_identifier_alias_removals(
+        intervals, recovery.get("identifier_alias_removals", [])
     )
     source = access.read_parquet(
         raw / "index_weight_000905_SH.parquet",
@@ -431,7 +468,11 @@ def build_full_benchmark_weights(
     snapshots = add_backcast_snapshots(
         snapshots,
         close,
-        config["universe"].get("membership_replacements", []),
+        [*frozen_replacements, *recovery_replacements],
+    )
+    snapshots, bridge_audit = apply_snapshot_instrument_bridges(
+        snapshots,
+        recovery.get("synthetic_snapshot_bridges", []),
     )
     weights = build_daily_weights(
         weight_calendar,
@@ -455,7 +496,17 @@ def build_full_benchmark_weights(
         "constituents_max": int(counts.max()),
         "maximum_weight_sum_error": float((sums - 1.0).abs().max()),
         "snapshot_mismatch_days": mismatches,
-        "membership_corrections": int(len(correction_audit)),
+        "frozen_membership_corrections": frozen_correction_audit.to_dict(
+            orient="records"
+        ),
+        "d9_membership_replacements": recovery_correction_audit.to_dict(
+            orient="records"
+        ),
+        "d9_identifier_alias_removals": alias_audit,
+        "d9_synthetic_snapshot_bridges": bridge_audit,
+        "membership_recovery_rules": int(
+            len(recovery_correction_audit) + len(alias_audit) + len(bridge_audit)
+        ),
         "design_parity_passed": True,
     }
 
@@ -1182,6 +1233,13 @@ def write_report(summary: dict, reports_dir: Path) -> None:
     performance = summary["performance"]
     thresholds = summary["threshold_evaluation"]
     acceptance = summary["execution_acceptance"]
+    recovery = summary["repository"].get("membership_recovery")
+    run_disclosure = (
+        "- 本次是受控工程恢复后的唯一一次统计性 OOS：原流程在读取收益、训练模型或生成绩效前，"
+        "因 35 个权重快照日的成分元数据不一致而停止；原失败清单保持不变，恢复清单另行留存。"
+        if recovery
+        else "- 本次是 2019-01 至 2026-08 样本外的唯一一次正式运行；运行清单在读取 OOS 前落盘。"
+    )
     lines = [
         "# D9 滚动样本外报告",
         "",
@@ -1192,7 +1250,10 @@ def write_report(summary: dict, reports_dir: Path) -> None:
         "",
         f"- 冻结提交：`{summary['repository']['frozen_oos_commit']}`；运行分支：`{summary['repository']['branch']}`。",
         "- D1–D8 的代码与配置值均未改变；仅新增 D9 文件与 config.yaml 的 d9 节。",
-        "- 本次是 2019-01 至 2026-08 样本外的唯一一次正式运行；运行清单在读取 OOS 前落盘。",
+        run_disclosure,
+        "- 恢复只修正中证500成分事件与历史证券代码映射；未读取既有 OOS 绩效、未改模型、参数、门槛或交易口径。"
+        if recovery
+        else "- 未发生工程恢复。",
         "- 冻结 D7 的事前 TE 中位数为 "
         f"{summary['frozen_d7_warning']['tracking_error_median']:.2%}，低于预注册 4% 下限；该失败原样保留，没有调参。",
         "",
@@ -1260,7 +1321,8 @@ def write_report(summary: dict, reports_dir: Path) -> None:
             "",
             "## 输出",
             "",
-            "- `reports/d9_summary.json`、`reports/D9滚动样本外报告.md`",
+            "- `reports/d9_run_manifest.json`、`reports/d9_recovery_manifest.json`（发生受控恢复时）",
+            "- `reports/d9_membership_recovery_audit.json`、`d9_summary.json`、`D9滚动样本外报告.md`",
             "- `reports/d9_oos_predictions.parquet`、`d9_fold_audit.parquet`、`d9_calibration_schedule.parquet`",
             "- `reports/d9_target_weights.parquet`、`d9_constraint_audit.parquet`、`d9_covariance_audit.parquet`",
             "- `reports/d9_main_monthly.parquet`、`d9_yearly_performance.parquet`",
@@ -1299,6 +1361,7 @@ def execute_d9(
     weights, weight_audit = build_full_benchmark_weights(
         access, config, calendar
     )
+    atomic_json(weight_audit, reports / "d9_membership_recovery_audit.json")
     tradability, tradability_audit = build_oos_tradability(
         access, config, weights, calendar
     )
@@ -1486,6 +1549,10 @@ def execute_d9(
     execution_acceptance = {
         "frozen_repository_verified": True,
         "one_shot_manifest_started_before_oos_read": True,
+        "controlled_recovery_protocol_validated": bool(
+            repository_audit.get("membership_recovery") is None
+            or repository_audit["membership_recovery"].get("validated") is True
+        ),
         "eight_folds_complete": bool(
             len(fold_audit) == int(config["d9"]["expected_fold_count"])
         ),
@@ -1552,6 +1619,8 @@ def execute_d9(
         "mode": access.mode,
         "oos_data_accessed": True,
         "oos_run_count": 1,
+        "statistical_oos_run_count": 1,
+        "engineering_recovery": repository_audit.get("membership_recovery"),
         "repository": repository_audit,
         "window": {
             "design_start": str(design_start.date()),
@@ -1666,14 +1735,45 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="D9 一次性滚动样本外回测"
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--preflight",
         action="store_true",
         help="只检查冻结、分支、依赖与数据文件，不读取样本外收益",
     )
+    mode.add_argument(
+        "--recovery-preflight",
+        action="store_true",
+        help="核对已登记的 35 日成分失败，且不消耗受控恢复机会",
+    )
+    mode.add_argument(
+        "--resume-membership-recovery",
+        action="store_true",
+        help="保留原始失败清单，以同一次统计性 OOS 做一次受控成分恢复",
+    )
+    parser.add_argument(
+        "--confirm",
+        default="",
+        help="受控恢复确认口令",
+    )
     args = parser.parse_args()
     config = load_config()
-    repository, upstream = preflight(config)
+    if args.confirm and not args.resume_membership_recovery:
+        parser.error("--confirm 只能与 --resume-membership-recovery 一起使用")
+    recovery_mode = bool(
+        args.recovery_preflight or args.resume_membership_recovery
+    )
+    if args.resume_membership_recovery:
+        expected_confirmation = str(
+            config["d9"]["membership_recovery"]["confirmation"]
+        )
+        if args.confirm != expected_confirmation:
+            raise OOSIntegrityError(
+                "受控恢复必须显式传入 --confirm " + expected_confirmation
+            )
+    repository, upstream = preflight(
+        config, membership_recovery=recovery_mode
+    )
     if args.preflight:
         print("D9 预检：通过")
         print(f"当前窗口模式：{repository['window_mode']}")
@@ -1681,21 +1781,63 @@ def main() -> None:
         if repository["window_mode"] == "design":
             print("下一步：显式解封后再运行 python scripts/d9_pipeline.py")
         return
+    if args.recovery_preflight:
+        recovery = repository["membership_recovery"]
+        print("D9 成分元数据受控恢复预检：通过")
+        print(f"当前窗口模式：{repository['window_mode']}")
+        print(f"原失败清单 SHA256：{recovery['original_manifest_sha256']}")
+        print("原失败发生在收益读取、模型训练与绩效生成之前：是")
+        print(
+            "下一步：python scripts/d9_pipeline.py "
+            "--resume-membership-recovery --confirm "
+            f"{config['d9']['membership_recovery']['confirmation']}"
+        )
+        return
     if repository["window_mode"] != "oos":
         raise OOSIntegrityError(
             "当前仍为 design 模式；请先按运行说明显式解封"
         )
-    manifest_path = ROOT / config["d9"]["run_manifest"]
-    manifest = {
-        "status": "started",
-        "oos_run_number": 1,
-        "frozen_oos_commit": repository["frozen_oos_commit"],
-        "d9_head_commit": repository["d9_head_commit"],
-        "config_sha256": sha256(ROOT / "config/config.yaml"),
-        "oos_start": config["windows"]["oos_start"],
-        "oos_end": config["windows"]["oos_end"],
-        "message": "正式 OOS 已启动；无论结果好坏都不得改参数重跑",
-    }
+    if args.resume_membership_recovery:
+        recovery = repository["membership_recovery"]
+        manifest_path = ROOT / config["d9"]["membership_recovery"][
+            "recovery_manifest"
+        ]
+        manifest = {
+            "status": "started",
+            "recovery_attempt_number": 1,
+            "oos_run_number": 1,
+            "statistical_oos_run_number": 1,
+            "original_manifest": recovery["original_manifest"],
+            "original_manifest_sha256": recovery["original_manifest_sha256"],
+            "original_failure": {
+                "d9_head_commit": recovery["failed_d9_head_commit"],
+                "config_sha256": recovery["failed_config_sha256"],
+                "error_type": recovery["error_type"],
+                "error": recovery["error"],
+            },
+            "frozen_oos_commit": repository["frozen_oos_commit"],
+            "recovery_d9_head_commit": repository["d9_head_commit"],
+            "recovery_config_sha256": sha256(ROOT / "config/config.yaml"),
+            "scope": "benchmark_membership_metadata_only",
+            "performance_observed_before_original_failure": False,
+            "model_or_threshold_parameters_changed": False,
+            "original_manifest_preserved": True,
+            "oos_start": config["windows"]["oos_start"],
+            "oos_end": config["windows"]["oos_end"],
+            "message": "同一次统计性 OOS 的受控工程恢复已启动；不得再次恢复",
+        }
+    else:
+        manifest_path = ROOT / config["d9"]["run_manifest"]
+        manifest = {
+            "status": "started",
+            "oos_run_number": 1,
+            "frozen_oos_commit": repository["frozen_oos_commit"],
+            "d9_head_commit": repository["d9_head_commit"],
+            "config_sha256": sha256(ROOT / "config/config.yaml"),
+            "oos_start": config["windows"]["oos_start"],
+            "oos_end": config["windows"]["oos_end"],
+            "message": "正式 OOS 已启动；无论结果好坏都不得改参数重跑",
+        }
     atomic_json(manifest, manifest_path)
     try:
         summary = execute_d9(config, repository, upstream)

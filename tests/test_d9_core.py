@@ -9,11 +9,14 @@ from src.d9_core import (
     OOSIntegrityError,
     OOSThresholds,
     aggregate_daily_to_monthly,
+    apply_identifier_alias_removals,
+    apply_snapshot_instrument_bridges,
     assert_frozen_config_unchanged,
     evaluate_oos_thresholds,
     maximum_relative_drawdown,
     newey_west_t_statistic,
     summarize_monthly_performance,
+    validate_membership_recovery_failure,
     validate_oos_fold_records,
 )
 
@@ -237,3 +240,120 @@ def test_d9_ingestion_allows_empty_suspension_year() -> None:
     )
     assert audit["passed"] is True
     assert audit["rows"] == 0
+
+
+def test_identifier_alias_removal_keeps_canonical_and_splits_alias() -> None:
+    intervals = pd.DataFrame(
+        {
+            "instrument": ["SZ300114", "SZ302132"],
+            "start_date": ["2023-01-01", "2023-12-29"],
+            "end_date": ["2025-12-31", "2025-06-29"],
+        }
+    )
+    result, audit = apply_identifier_alias_removals(
+        intervals,
+        [
+            {
+                "effective_start": "2023-12-29",
+                "effective_end": "2025-06-29",
+                "alias_instrument": "SZ300114",
+                "canonical_instrument": "SZ302132",
+            }
+        ],
+    )
+    alias = result.loc[result["instrument"].eq("SZ300114")]
+    assert alias[["start_date", "end_date"]].to_dict(orient="records") == [
+        {
+            "start_date": pd.Timestamp("2023-01-01"),
+            "end_date": pd.Timestamp("2023-12-28"),
+        },
+        {
+            "start_date": pd.Timestamp("2025-06-30"),
+            "end_date": pd.Timestamp("2025-12-31"),
+        },
+    ]
+    assert len(audit) == 1
+
+
+def test_identifier_alias_removal_requires_canonical_coverage() -> None:
+    intervals = pd.DataFrame(
+        {
+            "instrument": ["SZ300114", "SZ302132"],
+            "start_date": ["2023-01-01", "2024-01-01"],
+            "end_date": ["2025-12-31", "2025-06-29"],
+        }
+    )
+    with pytest.raises(ValueError, match="未完整覆盖"):
+        apply_identifier_alias_removals(
+            intervals,
+            [
+                {
+                    "effective_start": "2023-12-29",
+                    "effective_end": "2025-06-29",
+                    "alias_instrument": "SZ300114",
+                    "canonical_instrument": "SZ302132",
+                }
+            ],
+        )
+
+
+def test_synthetic_snapshot_bridge_preserves_weight_and_raw_snapshots() -> None:
+    snapshots = pd.DataFrame(
+        {
+            "trade_date": pd.to_datetime(["2021-09-13", "2021-09-13"]),
+            "instrument": ["SH600297", "SH601868"],
+            "weight": [0.8, 0.2],
+            "snapshot_origin": [
+                "backcast_membership_correction",
+                "backcast_membership_correction",
+            ],
+        }
+    )
+    result, audit = apply_snapshot_instrument_bridges(
+        snapshots,
+        [
+            {
+                "trade_date": "2021-09-13",
+                "source_instrument": "SH601868",
+                "target_instrument": "SH600068",
+            }
+        ],
+    )
+    bridged = result.set_index("instrument")["weight"]
+    assert "SH601868" not in bridged.index
+    assert bridged["SH600068"] == pytest.approx(0.2)
+    assert audit[0]["weight_preserved"] is True
+    raw = snapshots.assign(snapshot_origin="tushare_index_weight")
+    with pytest.raises(ValueError, match="不得修改"):
+        apply_snapshot_instrument_bridges(
+            raw,
+            [
+                {
+                    "trade_date": "2021-09-13",
+                    "source_instrument": "SH601868",
+                    "target_instrument": "SH600068",
+                }
+            ],
+        )
+
+
+def test_membership_recovery_accepts_only_exact_registered_failure() -> None:
+    expected = {
+        "status": "failed",
+        "oos_run_number": 1,
+        "d9_head_commit": "b479886",
+        "config_sha256": "old-config",
+        "error_type": "ValueError",
+        "error": "D9 权重快照与 PIT 成分区间有 35 个不一致日",
+        "rerun_allowed": False,
+    }
+    manifest = {
+        **expected,
+        "traceback": "Traceback ... in build_full_benchmark_weights",
+    }
+    audit = validate_membership_recovery_failure(manifest, expected)
+    assert audit["validated"] is True
+    assert audit["performance_observed_before_failure"] is False
+    changed = {**manifest, "error": "another failure"}
+    with pytest.raises(OOSIntegrityError, match="不一致"):
+        validate_membership_recovery_failure(changed, expected)
