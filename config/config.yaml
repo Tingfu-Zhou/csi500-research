@@ -199,6 +199,123 @@ d8:
   layer6_target_match_tolerance: 1.0e-10
   return_annualization_factor: 252
 
+d9:
+  frozen_oos_commit: 14cf2dda745840b8bfd614b504b39b1ef66617e0
+  required_branch: d9
+  processed_oos_dir: data/processed/oos
+  run_manifest: reports/d9_run_manifest.json
+  membership_recovery:
+    recovery_manifest: reports/d9_recovery_manifest.json
+    confirmation: RESUME_D9_MEMBERSHIP_RECOVERY
+    original_failure:
+      status: failed
+      oos_run_number: 1
+      frozen_oos_commit: 14cf2dda745840b8bfd614b504b39b1ef66617e0
+      d9_head_commit: b47988616f106b05d7ebcded767ff7fc40567c79
+      config_sha256: 51e7085441d3934444fa3800cb72dce525bee93201aad41dd118cdcdab11715f
+      error_type: ValueError
+      error: D9 权重快照与 PIT 成分区间有 35 个不一致日
+      rerun_allowed: false
+    membership_replacements:
+      - effective_start: 2019-01-18
+        effective_end: 2019-06-27
+        remove_instrument: SH600270
+        add_instrument: SH601598
+        anchor_snapshot_date: 2019-01-31
+        reason: 中国外运换股吸收合并外运发展，自中国外运 A 股上市日起临时调样
+        evidence: https://www.sse.com.cn/market/sseindex/diclosure/c/c_20181217_4694178.shtml
+      - effective_start: 2020-08-18
+        effective_end: 2020-12-30
+        remove_instrument: SZ002470
+        add_instrument: SH603708
+        anchor_snapshot_date: 2020-08-31
+        reason: 中证500临时调出 *ST金正并调入家家悦
+        evidence: https://pdf.dfcfw.com/pdf/H2_AN202008251401219756_1.pdf
+      - effective_start: 2021-09-13
+        effective_end: 2021-12-30
+        remove_instrument: SH600260
+        add_instrument: SH600297
+        anchor_snapshot_date: 2021-09-30
+        reason: 凯乐科技退出中证500且广汇汽车同日进入
+        evidence: https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600297.phtml
+      - effective_start: 2021-09-28
+        effective_end: 2021-12-30
+        remove_instrument: SH600068
+        add_instrument: SH601868
+        anchor_snapshot_date: 2021-09-30
+        reason: 葛洲坝退出中证500且中国能建同日进入
+        evidence: https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/601868.phtml
+      - effective_start: 2026-01-12
+        effective_end: 2026-06-29
+        remove_instrument: SH600079
+        add_instrument: SH688037
+        anchor_snapshot_date: 2026-01-30
+        reason: 2026年1月9日收市后中证500调出 ST人福并调入芯源微
+        evidence: https://hk.investing.com/news/stock-market-news/article-1256533
+    identifier_alias_removals:
+      - effective_start: 2023-12-29
+        effective_end: 2025-06-29
+        alias_instrument: SZ300114
+        canonical_instrument: SZ302132
+        reason: Qlib 同时保留变更前后代码；Tushare 已把同一上市主体历史权重统一映射为 302132
+        evidence: https://disc.static.szse.cn/disc/disk03/finalpage/2025-02-15/cedb693a-f5ee-4463-9682-ea33d406b569.PDF
+    synthetic_snapshot_bridges:
+      - trade_date: 2021-09-13
+        source_instrument: SH601868
+        target_instrument: SH600068
+        reason: 9月30日锚点已含9月28日后继证券；9月13日合成快照仍应保留当时有效的葛洲坝
+        evidence: https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600068.phtml
+  v2:
+    classification: post_oos_methodology_amendment
+    confirmation: RUN_D9_V2_POST_OOS_AMENDMENT
+    processed_oos_dir: data/processed/oos_v2
+    feasibility_audit: reports/d9_v2_feasibility_audit.json
+    feasibility_dates: reports/d9_v2_feasibility_dates.parquet
+    run_manifest: reports/d9_v2_manifest.json
+    summary: reports/d9_v2_summary.json
+    original_manifest_sha256: dd513b90e0c7490eeebeb78e3822aff1076f523e8e28be82eac5b3f59caed9b3
+    recovery_manifest_sha256: f702eb124039f6ee43c2a2bda87865f03a339caafecf56b224b03f5f21b59c1a
+    recovery_failure:
+      status: failed
+      recovery_attempt_number: 1
+      oos_run_number: 1
+      statistical_oos_run_number: 1
+      original_manifest: reports/d9_run_manifest.json
+      original_manifest_sha256: dd513b90e0c7490eeebeb78e3822aff1076f523e8e28be82eac5b3f59caed9b3
+      frozen_oos_commit: 14cf2dda745840b8bfd614b504b39b1ef66617e0
+      recovery_d9_head_commit: 249ede7f5c5b3f8e2cda28248ce12c9e842ade24
+      recovery_config_sha256: b1917b5a8390c9396c5c0d79082d54295897a58239db74dd6b5342da267ad0e3
+      scope: benchmark_membership_metadata_only
+      performance_observed_before_original_failure: false
+      model_or_threshold_parameters_changed: false
+      original_manifest_preserved: true
+      error_type: PortfolioOptimizationError
+      error: CLARABEL 未得到严格 optimal，status=infeasible；D7 禁止 fallback
+      rerun_allowed: false
+  expected_fold_count: 8
+  main_capital_cny: 10000000
+  newey_west_lags:
+    - 3
+    - 4
+    - 5
+    - 6
+  newey_west_decision_rule: minimum_across_configured_lags
+  impact_stress_multiplier: 2.0
+  allowed_changes_since_freeze:
+    - config/config.yaml
+    - src/d9_core.py
+    - scripts/d9_pipeline.py
+    - scripts/pull_d9_oos.py
+    - tests/test_d9_core.py
+    - D9运行说明.md
+  thresholds:
+    annualized_excess_return_min: 0.035
+    information_ratio_min: 0.75
+    newey_west_t_min: 2.0
+    maximum_relative_drawdown_max: 0.10
+    specific_contribution_share_min: 0.50
+    doubled_impact_annualized_excess_min: 0.0
+
 industry:
   classification: sw_level1
   pit: false
