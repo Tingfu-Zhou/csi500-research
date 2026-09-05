@@ -58,6 +58,23 @@ def price_panels(market):
             vwap.combine_first(close).combine_first(previous_close))
 
 
+def day_quote(market_day, name):
+    """D3's `day.reindex(universe)`, not a raw label lookup.
+
+    A long suspension leaves no Qlib bar at all, so the name simply has no row
+    on that date while still being ordered: run_vwap_backtest reindexes the
+    day's quotes onto the order universe, and the missing row arrives as NaN.
+    `quotes["can_buy"].eq(True)` then makes both flags False, so neither leg can
+    fill, yet the order is still written to the ledger because its desired
+    amount is nonzero. Indexing with .loc raises KeyError on exactly that row.
+    """
+    quote = market_day.reindex([name]).iloc[0].copy()
+    for flag in ("can_buy", "can_sell"):
+        # D3 applies .eq(True) to the reindexed row; bool(NaN) would be True.
+        quote[flag] = bool(quote[flag]) if pd.notna(quote[flag]) else False
+    return quote
+
+
 def assert_long_only(position_values, date, label):
     """D3 states its long-only contract in CURRENCY, so assert it there.
 
@@ -170,8 +187,12 @@ def reconstruct_executed_path(daily, trades, market, initial_capital, cost_model
             # The pretrade-weight check above already bounds how far a rebuilt
             # position may sit from D3's own; reuse that budget, do not invent one.
             position_budget = max(1e-5, 2e-9 * pre_nav)
+            quotes_today = market_days[date]
             for name, order in g.iterrows():
-                quote = market_days[date].loc[name]
+                quote = day_quote(quotes_today, name)
+                if name not in quotes_today.index and float(order.executed_trade_amount) != 0:
+                    raise DiagnosticError(f"{date}/{name}: filled "
+                                          f"{float(order.executed_trade_amount):.12g} with no market row that day")
                 calculated = trade_cost(order.executed_trade_amount, quote.volatility,
                                         quote.daily_amount_cny, date, cost_model)
                 max_error = max(require_close([order[k]], [v], f"{date}/{name}/{k}", atol=1e-5)

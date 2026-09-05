@@ -26,7 +26,16 @@ from src.d6_core import compute_raw_style_history
 from scripts.d6_pipeline import assemble_exposures
 
 
-def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, monkeypatch):
+@pytest.mark.parametrize("hostile", [False, True], ids=["clean", "hostile"])
+def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, monkeypatch, hostile):
+    """The hostile pass carries every awkward shape the real ladder contains.
+
+    Each of these cost a live run before it was covered here: Qlib float32
+    quotes, a name with no bar at all (a long suspension), a suspended bar with
+    no close or vwap, a side blocked by the D2 amount floor, a binding
+    participation cap, and a cheap stock held in size whose exit leaves negative
+    unit dust.
+    """
     config = yaml.safe_load((pipeline.ROOT / "config/config.yaml").read_text())
     config["windows"].update(design_start="2017-01-01", design_end="2017-08-31", oos_start="2025-12-01", oos_end="2026-07-31")
     (tmp_path / "config").mkdir(); (tmp_path / "config/config.yaml").write_text(yaml.safe_dump(config))
@@ -46,6 +55,14 @@ def test_entire_diagnostic_orchestration_preserves_inputs_and_nogo(tmp_path, mon
             "vwap": vwaps[t, i], "daily_amount_cny": 100_000_000., "volatility": .02,
             "can_buy": True, "can_sell": not (t == 7 and i < 3)}
             for t, d in enumerate(dates) for i, name in enumerate(names)])
+        if hostile:
+            pick = lambda name, days: market.instrument.eq(name) & market.trade_date.isin(days)
+            market.loc[pick(names[1], dates[10:12]), ["close", "vwap"]] = np.nan
+            market.loc[pick(names[2], dates[7:20]), "can_buy"] = False
+            market.loc[pick(names[4], dates), "daily_amount_cny"] = 60_000.
+            market.loc[pick(names[5], dates), ["close", "vwap"]] /= 8
+            market[["close", "vwap"]] = market[["close", "vwap"]].astype("float32")
+            market = market.loc[~pick(names[0], dates[4:7])].reset_index(drop=True)
         ideal = make_ideal_execution_market(market, fallback_daily_amount=50_000_000.)
         weights = pd.DataFrame([{"trade_date": d, "instrument": name, "weight": 1 / n} for d in dates for name in names])
         exposure = weights.rename(columns={"weight": "benchmark_weight"}).copy()

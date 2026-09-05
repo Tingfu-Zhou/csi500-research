@@ -15,7 +15,7 @@ from src.d8_core import summarize_backtest_performance
 from src.d10_core import (DiagnosticError, align_stress_daily, attribute_executed_path,
     executed_turnover_split, half_l1, linked_monthly, path_gross_net, price_panels,
     reconstruct_executed_path, require_close, stress_schedule, tradable_fill_range,
-    assert_long_only, turnover_split, wls_cross_section)
+    assert_long_only, day_quote, turnover_split, wls_cross_section)
 from src.d10_io import (D10Output, assert_snapshot_unchanged, git_blob, snapshot_inputs, verify_repository)
 
 
@@ -81,6 +81,35 @@ def test_corrupted_order_cost_is_detected_independently_of_nav():
     result.trades.loc[0, "stamp_duty_cost"] += 1
     with pytest.raises(DiagnosticError, match="stamp_duty_cost"):
         reconstruct_executed_path(daily, result.trades, market, 10_000, model)
+
+
+def test_order_for_a_name_with_no_market_row_that_day_reconciles():
+    """A long suspension leaves no Qlib bar, so the name is ordered but absent.
+
+    D3 reindexes the day's quotes onto the order universe: the row arrives NaN,
+    .eq(True) makes both flags False, neither leg fills, and the order is still
+    written because its desired amount is nonzero. A raw .loc lookup raises.
+    """
+    market, targets, model, _, _, _ = synthetic_case()
+    dates = sorted(market.trade_date.unique())
+    absent_date = dates[4]
+    market = market.loc[~(market.instrument.eq("S00") & market.trade_date.eq(absent_date))].reset_index(drop=True)
+    result = run_vwap_backtest(market, targets, 10_000., model)
+    logged = result.trades.set_index(["execution_date", "instrument"]).loc[(absent_date, "S00")]
+    assert logged.desired_trade_amount != 0 and logged.executed_trade_amount == 0
+    assert not logged.can_buy and not logged.can_sell and logged.blocked_by_tradability
+    _, daily = summarize_backtest_performance(result.nav, pd.DataFrame({"trade_date": dates, "close": 100.}), initial_capital=10_000.)
+    path = reconstruct_executed_path(daily, result.trades, market, 10_000., model)
+    assert path.daily.accounting_residual.abs().max() < 1e-12
+    quotes = market.loc[market.trade_date.eq(absent_date)].set_index("instrument")
+    absent = day_quote(quotes, "S00")
+    assert absent.can_buy is False and absent.can_sell is False and pd.isna(absent.daily_amount_cny)
+    assert bool(day_quote(quotes, "S01").can_buy) is True
+    # a fill on a day with no row is still refused
+    result.trades.loc[result.trades.execution_date.eq(absent_date) & result.trades.instrument.eq("S00"),
+                      "executed_trade_amount"] = 1.0
+    with pytest.raises(DiagnosticError, match="no market row that day"):
+        reconstruct_executed_path(daily, result.trades, market, 10_000., model)
 
 
 def test_long_only_contract_is_asserted_in_currency_not_share_count():

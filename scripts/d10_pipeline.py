@@ -313,10 +313,16 @@ def layer2_comparison(window, capital, daily1, daily2, path1, path2, market, out
         key = (order.signal_date, order.instrument)
         signal_buy = bool(flags.loc[key, "can_buy"]) if key in flags.index else None
         signal_sell = bool(flags.loc[key, "can_sell"]) if key in flags.index else None
-        current = flags.loc[(order.execution_date, order.instrument)]
+        # The signal-day lookup is already guarded; the execution day needs the same.
+        # A long suspension leaves no bar at all, and D3 reindexes that to NaN, so
+        # both flags read False. Record the absence rather than raising on it.
+        execution_key = (order.execution_date, order.instrument)
+        current = flags.loc[execution_key] if execution_key in flags.index else None
         state_rows.append({"signal_date": order.signal_date, "execution_date": order.execution_date,
             "instrument": order.instrument, "signal_can_buy": signal_buy, "signal_can_sell": signal_sell,
-            "execution_can_buy": bool(current.can_buy), "execution_can_sell": bool(current.can_sell),
+            "execution_row_present": current is not None,
+            "execution_can_buy": bool(current.can_buy) if current is not None else False,
+            "execution_can_sell": bool(current.can_sell) if current is not None else False,
             "blocked_by_tradability": order.blocked_by_tradability,
             "state_source": "execution-day realized filter; not a signal-time eligibility guarantee"})
     output.parquet(tag + "_state_timing.parquet", pd.DataFrame(state_rows))
