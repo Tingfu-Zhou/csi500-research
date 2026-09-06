@@ -1,0 +1,60 @@
+{
+  "total": 4,
+  "clean": false,
+  "by_group": [
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "layer": 5,
+      "findings": 2
+    },
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "layer": 6,
+      "findings": 2
+    }
+  ],
+  "run_completed": false,
+  "interpretation": "ledger discrepancies found by D10; D8/D9-V2 files are untouched",
+  "findings": [
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "layer": 5,
+      "date": "2019-01-07 00:00:00",
+      "kind": "unpriceable_ordered_instrument",
+      "instruments": 1,
+      "finding": "2019-01-07 00:00:00: ordered instruments absent from the market panel: SH600270"
+    },
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "layer": 5,
+      "date": "2019-01-14 00:00:00",
+      "kind": "unpriceable_ordered_instrument",
+      "instruments": 1,
+      "finding": "2019-01-14 00:00:00: ordered instruments absent from the market panel: SH600270"
+    },
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "layer": 6,
+      "date": "2019-01-07 00:00:00",
+      "kind": "unpriceable_ordered_instrument",
+      "instruments": 1,
+      "finding": "2019-01-07 00:00:00: ordered instruments absent from the market panel: SH600270"
+    },
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "layer": 6,
+      "date": "2019-01-14 00:00:00",
+      "kind": "unpriceable_ordered_instrument",
+      "instruments": 1,
+      "finding": "2019-01-14 00:00:00: ordered instruments absent from the market panel: SH600270"
+    }
+  ],
+  "truncated": 0,
+  "decision": "No-Go"
+}

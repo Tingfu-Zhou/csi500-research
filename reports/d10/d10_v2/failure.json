@@ -1,0 +1,5 @@
+{
+  "error": "2017-02-13 00:00:00/SZ002073: logged trade violates execution-day state",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 534, in main\n    summary, ladder = run_diagnostics(ResearchDataAccess(ROOT), config, output)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 428, in run_diagnostics\n    path = reconstruct_executed_path(daily, trades, selected_market, capital, model)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/src/d10_core.py\", line 134, in reconstruct_executed_path\n    raise DiagnosticError(f\"{date}/{name}: logged trade violates execution-day state\")\nsrc.d10_core.DiagnosticError: 2017-02-13 00:00:00/SZ002073: logged trade violates execution-day state\n",
+  "decision": "No-Go"
+}

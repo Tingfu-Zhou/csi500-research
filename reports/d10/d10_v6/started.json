@@ -1,0 +1,23 @@
+{
+  "repository": {
+    "branch": "d10",
+    "head": "322a7253558c74fd61550d6e29178aa21d2f4aa6",
+    "baseline": "161b1b5f5448e26aa6932e2477df88f9e718199d",
+    "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "protected_tracked_files": 125
+  },
+  "versions": {
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.9.0",
+    "pyarrow": "25.0.1",
+    "matplotlib": "3.11.1",
+    "pyqlib": "0.9.7"
+  },
+  "decision": "No-Go",
+  "preflight_passed": true,
+  "run_id": "d10_v6",
+  "classification": "D10 ex-post diagnostic only"
+}

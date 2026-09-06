@@ -1,0 +1,5 @@
+{
+  "error": "order instruments missing from market",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 548, in main\n    summary, ladder = run_diagnostics(ResearchDataAccess(ROOT), config, output)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 442, in run_diagnostics\n    path = reconstruct_executed_path(daily, trades, selected_market, capital, model)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/src/d10_core.py\", line 172, in reconstruct_executed_path\n    raise DiagnosticError(\"order instruments missing from market\")\nsrc.d10_core.DiagnosticError: order instruments missing from market\n",
+  "decision": "No-Go"
+}

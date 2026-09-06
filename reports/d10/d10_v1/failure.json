@@ -1,0 +1,5 @@
+{
+  "error": "holding + intraday - costs: maximum absolute difference 4.4196469505e-09",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 534, in main\n    summary, ladder = run_diagnostics(ResearchDataAccess(ROOT), config, output)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 428, in run_diagnostics\n    path = reconstruct_executed_path(daily, trades, selected_market, capital, model)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/src/d10_core.py\", line 160, in reconstruct_executed_path\n    require_close([pnl_return], [actual_return], \"holding + intraday - costs\")\n  File \"/home/tingfu/projects/csi500-research/src/d10_core.py\", line 27, in require_close\n    raise DiagnosticError(f\"{label}: maximum absolute difference {error:.12g}\")\nsrc.d10_core.DiagnosticError: holding + intraday - costs: maximum absolute difference 4.4196469505e-09\n",
+  "decision": "No-Go"
+}

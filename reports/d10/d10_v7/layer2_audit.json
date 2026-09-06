@@ -1,0 +1,56 @@
+{
+  "comparisons": [
+    {
+      "window": "design",
+      "capital": 10000000.0,
+      "l2_minus_l1_monthly_annualized": 0.06061136488374935,
+      "holding_path_delta": 0.046673704155044696,
+      "execution_pnl_delta": -0.0006226210312383553,
+      "cost_saving_delta": 0.014560281759944938,
+      "maximum_closure_residual": 1.4667086989383904e-15,
+      "cost_formula_parity_checked": true,
+      "blocked_orders_create_no_positions_or_fees": true,
+      "interpretation": "exact paired realized-path accounting; no unique causal effect of the filter",
+      "future_label_sample_selection": "confirmed inherited code limitation; see d10_errata.md"
+    },
+    {
+      "window": "design",
+      "capital": 20000000.0,
+      "l2_minus_l1_monthly_annualized": 0.06302222661973095,
+      "holding_path_delta": 0.04661743785784833,
+      "execution_pnl_delta": -0.0006152727404743873,
+      "cost_saving_delta": 0.017020061502359442,
+      "maximum_closure_residual": 8.1900632109555005e-16,
+      "cost_formula_parity_checked": true,
+      "blocked_orders_create_no_positions_or_fees": true,
+      "interpretation": "exact paired realized-path accounting; no unique causal effect of the filter",
+      "future_label_sample_selection": "confirmed inherited code limitation; see d10_errata.md"
+    },
+    {
+      "window": "oos",
+      "capital": 10000000.0,
+      "l2_minus_l1_monthly_annualized": -0.0184919451091771,
+      "holding_path_delta": -0.02401448478268827,
+      "execution_pnl_delta": 1.8906835917480968e-05,
+      "cost_saving_delta": 0.0055036328375928315,
+      "maximum_closure_residual": 1.532628191025509e-15,
+      "cost_formula_parity_checked": true,
+      "blocked_orders_create_no_positions_or_fees": true,
+      "interpretation": "exact paired realized-path accounting; no unique causal effect of the filter",
+      "future_label_sample_selection": "confirmed inherited code limitation; see d10_errata.md"
+    },
+    {
+      "window": "oos",
+      "capital": 20000000.0,
+      "l2_minus_l1_monthly_annualized": -0.017425857221760443,
+      "holding_path_delta": -0.023984920409837795,
+      "execution_pnl_delta": 2.035027338442271e-05,
+      "cost_saving_delta": 0.006538712914696505,
+      "maximum_closure_residual": 1.5692742244555191e-15,
+      "cost_formula_parity_checked": true,
+      "blocked_orders_create_no_positions_or_fees": true,
+      "interpretation": "exact paired realized-path accounting; no unique causal effect of the filter",
+      "future_label_sample_selection": "confirmed inherited code limitation; see d10_errata.md"
+    }
+  ]
+}
