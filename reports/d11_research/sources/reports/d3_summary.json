@@ -1,0 +1,94 @@
+{
+  "mode": "design",
+  "window": {
+    "start": "2014-01-01 00:00:00",
+    "end": "2018-12-31 00:00:00"
+  },
+  "leakage": {
+    "timestamp_assertion_passed": true,
+    "timestamp_rows": 222960,
+    "future_perturbation_checks": 8,
+    "future_perturbation_passed": 8,
+    "cutoffs": [
+      "2014-01-03 00:00:00",
+      "2014-09-12 00:00:00",
+      "2015-05-22 00:00:00",
+      "2016-01-29 00:00:00",
+      "2016-10-21 00:00:00",
+      "2017-06-30 00:00:00",
+      "2018-03-16 00:00:00",
+      "2018-12-07 00:00:00"
+    ]
+  },
+  "execution": {
+    "order_rows": 128504,
+    "executed_rows": 103297,
+    "blocked_by_tradability_rows": 25217,
+    "participation_limited_rows": 0,
+    "cash_limited_rows": 26033,
+    "fill_ratio": 0.46373482017870143,
+    "t_plus_one_ok": true,
+    "ending_nav": 10668346.90288552,
+    "total_transaction_cost": 74516.79665222943,
+    "mean_single_sided_turnover": 0.0029130252702732258,
+    "weekly_signal_days": 255,
+    "capital_scenarios": {
+      "10000000": {
+        "order_rows": 128504,
+        "executed_rows": 103297,
+        "blocked_by_tradability_rows": 25217,
+        "participation_limited_rows": 0,
+        "cash_limited_rows": 26033,
+        "fill_ratio": 0.46373482017870143,
+        "t_plus_one_ok": true,
+        "ending_nav": 10668346.90288552,
+        "total_transaction_cost": 74516.79665222943,
+        "mean_single_sided_turnover": 0.0029130252702732258
+      },
+      "20000000": {
+        "order_rows": 128509,
+        "executed_rows": 103304,
+        "blocked_by_tradability_rows": 25218,
+        "participation_limited_rows": 0,
+        "cash_limited_rows": 26033,
+        "fill_ratio": 0.46371365572992007,
+        "t_plus_one_ok": true,
+        "ending_nav": 21330356.572802648,
+        "total_transaction_cost": 157218.0102402019,
+        "mean_single_sided_turnover": 0.002912961699475354
+      }
+    }
+  },
+  "replication": {
+    "capital": 10000000.0,
+    "snapshot_signal_days": 60,
+    "tolerance": 0.005,
+    "gross": {
+      "portfolio_annualized_return": 0.011351437513974494,
+      "benchmark_annualized_return": 0.014835633207297194,
+      "annualized_difference": -0.0034841956933227003,
+      "absolute_annualized_difference": 0.0034841956933227003,
+      "tracking_error": 0.004698913494543586,
+      "mean_single_sided_turnover": 0.0017860875608453279,
+      "total_transaction_cost": 0.0,
+      "blocked_trade_rows": 2130
+    },
+    "net": {
+      "portfolio_annualized_return": 0.010798246055712557,
+      "benchmark_annualized_return": 0.014835633207297194,
+      "annualized_difference": -0.004037387151584637,
+      "absolute_annualized_difference": 0.004037387151584637,
+      "tracking_error": 0.004726259086124478,
+      "mean_single_sided_turnover": 0.0017854146651557139,
+      "total_transaction_cost": 42872.73533458704,
+      "blocked_trade_rows": 2117
+    }
+  },
+  "acceptance": {
+    "timestamp_assertion": true,
+    "future_perturbation": true,
+    "t_plus_one": true,
+    "benchmark_replication": true,
+    "passed": true
+  }
+}

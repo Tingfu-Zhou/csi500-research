@@ -1,0 +1,8 @@
+{
+  "status": "requires_review",
+  "observed_discrepancy": "negative reconstructed cash or units",
+  "historical_results_overwritten": false,
+  "corrected_performance": null,
+  "interpretation": "Input/code/accounting mismatch, not permission to repair or rerun D9.",
+  "decision": "No-Go"
+}

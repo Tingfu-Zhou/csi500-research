@@ -1,0 +1,86 @@
+{
+  "mode": "design",
+  "upstream_d6_passed": true,
+  "oos_data_accessed": false,
+  "versions": {
+    "cvxpy": "1.9.2",
+    "clarabel": "0.11.1"
+  },
+  "solver": {
+    "name": "CLARABEL",
+    "optimal_dates": 98,
+    "success_rate": 1.0,
+    "fallback_count": 0
+  },
+  "objective": {
+    "formula": "d^T mu - c * ||w - w0||_1",
+    "cost_method": "symmetric_linear_fees_and_half_stamp",
+    "dynamic_impact_in_optimizer": false,
+    "dynamic_impact_next_stage": "D8 actual-cost layer via D3"
+  },
+  "limits": {
+    "stock_active": 0.015,
+    "industry_active": 0.02,
+    "style_active": 0.3,
+    "constrained_styles": [
+      "style_Size",
+      "style_Beta"
+    ],
+    "single_sided_turnover": 0.15,
+    "constraint_tolerance": 1e-06
+  },
+  "signal_coverage": {
+    "d6_exposure_start": "2014-01-02",
+    "d6_exposure_end": "2018-12-28",
+    "optimization_start": "2017-01-06",
+    "optimization_end": "2018-12-14",
+    "optimization_dates": 98,
+    "minimum_mu_coverage": 0.9,
+    "interpretation": "all D5 walk-forward signal dates inside the 2014-2018 design window"
+  },
+  "constraint_audit": {
+    "maximum_weight_sum_error": 2.220446049250313e-16,
+    "minimum_weight": 0.0,
+    "maximum_stock_active": 0.015000008433209039,
+    "maximum_industry_active": 0.020000094378054147,
+    "maximum_style_active": 0.30000011694609413,
+    "maximum_single_sided_turnover": 0.1500000250706983,
+    "median_single_sided_turnover": 0.14999997670217158,
+    "maximum_forced_exit_weight": 0.12815119018267654
+  },
+  "portfolio": {
+    "minimum_holdings": 77,
+    "median_holdings": 88.0,
+    "maximum_holdings": 428
+  },
+  "tracking_error": {
+    "estimator": "sklearn.covariance.LedoitWolf",
+    "frequency": "daily",
+    "annualization_factor": 252.0,
+    "acceptance_statistic": "median",
+    "median": 0.03541919060906655,
+    "mean": 0.03596998167508473,
+    "minimum": 0.016943973892944986,
+    "maximum": 0.04926100630571432,
+    "acceptance_min": 0.04,
+    "acceptance_max": 0.06,
+    "minimum_active_l1_coverage": 0.9684790621043713,
+    "required_active_l1_coverage": 0.95,
+    "usage": "report only; not an optimization constraint or tuning target"
+  },
+  "acceptance": {
+    "upstream_d6": true,
+    "all_available_design_signal_dates": true,
+    "solver_success_100pct": true,
+    "fallback_zero": true,
+    "fully_invested": true,
+    "long_only": true,
+    "stock_active": true,
+    "industry_active": true,
+    "style_active": true,
+    "turnover": true,
+    "covariance_coverage": true,
+    "tracking_error": false,
+    "passed": false
+  }
+}

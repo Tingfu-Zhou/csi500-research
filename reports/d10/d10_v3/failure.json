@@ -1,0 +1,5 @@
+{
+  "error": "negative reconstructed cash or units",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 542, in main\n    summary, ladder = run_diagnostics(ResearchDataAccess(ROOT), config, output)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/scripts/d10_pipeline.py\", line 436, in run_diagnostics\n    path = reconstruct_executed_path(daily, trades, selected_market, capital, model)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/src/d10_core.py\", line 200, in reconstruct_executed_path\n    raise DiagnosticError(\"negative reconstructed cash or units\")\nsrc.d10_core.DiagnosticError: negative reconstructed cash or units\n",
+  "decision": "No-Go"
+}

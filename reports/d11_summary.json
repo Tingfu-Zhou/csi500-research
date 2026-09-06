@@ -1,0 +1,78 @@
+{
+  "stage": "local_run_result_review",
+  "source_commit": "51c280fa75b46bd718244b4b582f48ba0c1201d8",
+  "run_id": "d11_v1",
+  "historical_decision": "No-Go",
+  "new_oos_validation": false,
+  "local_historical_run_completed": true,
+  "full_verify_reported_by_user": {
+    "verified": true,
+    "orders": 183240,
+    "decisions": 392
+  },
+  "remote_review_scope": "committed JSON hashes, audit records, and summary arithmetic; no daily NAV replication",
+  "remote_json_outputs_verified": 404,
+  "performance": {
+    "months": 92,
+    "annualized_excess_return": 0.04928038579790758,
+    "annualized_tracking_error": 0.06824587355096423,
+    "information_ratio": 0.7221005935414729,
+    "identity_ir_times_te": 0.04928038579790758,
+    "newey_west_t_by_lag": {
+      "3": 1.9390513923739126,
+      "4": 1.9792248211104702,
+      "5": 2.0444836374401674,
+      "6": 2.1070907158877246
+    },
+    "newey_west_t_minimum": 1.9390513923739126,
+    "newey_west_decision_rule": "minimum_across_configured_lags",
+    "maximum_relative_drawdown": 0.10569541097837287,
+    "portfolio_cumulative_return": 2.0786902584702522,
+    "benchmark_cumulative_return": 1.1501342961961596,
+    "cumulative_excess_return_difference": 0.9285559622740926
+  },
+  "reference_gates": {
+    "annualized_excess_return": true,
+    "information_ratio": false,
+    "newey_west_t": false,
+    "maximum_relative_drawdown": false,
+    "specific_contribution_share": null,
+    "doubled_impact_annualized_excess": null
+  },
+  "original_code_delivery": {
+    "date": "2026-09-06",
+    "base_commit": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "branch": "d11",
+    "classification": "post_oos_causal_repair_code_delivery",
+    "historical_decision": "No-Go",
+    "issues": {
+      "E01": "reproduced_and_repaired_in_d11",
+      "E04": "reproduced_and_repaired_in_d11",
+      "E03": "policy_execution_separated; strict historical publication vintages not established"
+    },
+    "tests": {
+      "command": "PYTHONPATH=. python -m pytest tests/test_d11_core.py tests/test_d11_pipeline.py -q",
+      "passed": 24,
+      "scope": "synthetic model/optimizer/execution integration, causal counterfactuals, Git and artifact guards"
+    },
+    "dependencies": {
+      "numpy": "2.3.5",
+      "pandas": "2.2.3",
+      "scipy": "1.17.0",
+      "scikit-learn": "1.8.0",
+      "lightgbm": "4.7.0",
+      "cvxpy": "1.9.2",
+      "clarabel": "0.11.1",
+      "pyarrow": "25.0.1",
+      "pytest": "9.1.1"
+    },
+    "report_evidence": {
+      "source_files_verified": 48,
+      "numeric_index_rows": 1650
+    },
+    "production_preflight_run": false,
+    "full_historical_backtest_run": false,
+    "corrected_alpha": null,
+    "reason_full_run_unavailable": "Original local Qlib/Tushare datasets and D9-V2 parquet artifacts are not present in this workspace."
+  }
+}

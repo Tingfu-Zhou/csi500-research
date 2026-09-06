@@ -1,0 +1,21 @@
+{
+  "source_commit": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+  "checks": {
+    "original_manifest_hash": true,
+    "recovery_manifest_hash": true,
+    "feasibility_audit_hash": true,
+    "protected_blobs_match_main_tree": true,
+    "d9_d10_main_metrics_identical": true,
+    "ir_times_te": true,
+    "attribution_closes": true,
+    "specific_share": true,
+    "july_difference": true,
+    "all_downloaded_sources_match_git_blob": true
+  },
+  "source_files": 48,
+  "numeric_index_rows": 1650,
+  "reran_models": false,
+  "reran_backtests": false,
+  "full_data_available": false,
+  "d10_diagnostic_acceptance_passed": false
+}

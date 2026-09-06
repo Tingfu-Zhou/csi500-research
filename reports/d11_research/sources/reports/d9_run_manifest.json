@@ -1,0 +1,14 @@
+{
+  "status": "failed",
+  "oos_run_number": 1,
+  "frozen_oos_commit": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+  "d9_head_commit": "b47988616f106b05d7ebcded767ff7fc40567c79",
+  "config_sha256": "51e7085441d3934444fa3800cb72dce525bee93201aad41dd118cdcdab11715f",
+  "oos_start": "2019-01-01",
+  "oos_end": "2026-08-31",
+  "message": "正式 OOS 已启动；无论结果好坏都不得改参数重跑",
+  "error_type": "ValueError",
+  "error": "D9 权重快照与 PIT 成分区间有 35 个不一致日",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/tingfu/projects/csi500-research/scripts/d9_pipeline.py\", line 1701, in main\n    summary = execute_d9(config, repository, upstream)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/scripts/d9_pipeline.py\", line 1299, in execute_d9\n    weights, weight_audit = build_full_benchmark_weights(\n                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/tingfu/projects/csi500-research/scripts/d9_pipeline.py\", line 423, in build_full_benchmark_weights\n    raise ValueError(f\"D9 权重快照与 PIT 成分区间有 {mismatches} 个不一致日\")\nValueError: D9 权重快照与 PIT 成分区间有 35 个不一致日\n",
+  "rerun_allowed": false
+}

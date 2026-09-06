@@ -1,0 +1,77 @@
+{
+  "scenarios": [
+    {
+      "scenario": "impact2x_reused",
+      "source": "existing reports/d9_v2_impact2x_*; no rerun",
+      "months": 92,
+      "annualized_excess_return": 0.025413319950792546,
+      "annualized_tracking_error": 0.06387925315973057,
+      "information_ratio": 0.39783370490018627,
+      "identity_ir_times_te": 0.025413319950792546,
+      "newey_west_t_by_lag": {
+        "3": 1.1219380122345315,
+        "4": 1.1464198799995933,
+        "5": 1.1712974900986377,
+        "6": 1.19841169074924
+      },
+      "newey_west_t_minimum": 1.1219380122345315,
+      "newey_west_decision_rule": "minimum_across_configured_lags",
+      "maximum_relative_drawdown": 0.11268919204181005,
+      "portfolio_cumulative_return": 1.5376722235838427,
+      "benchmark_cumulative_return": 1.089721118535664,
+      "cumulative_excess_return_difference": 0.4479511050481788,
+      "maximum_outside_membership_weight": 0.16121599885465154,
+      "decision": "No-Go",
+      "decision_changed": false
+    },
+    {
+      "scenario": "delay_one_day",
+      "source": "frozen-target execution schedule sensitivity; no alpha refit or reoptimization",
+      "months": 92,
+      "annualized_excess_return": 0.022515374791076938,
+      "annualized_tracking_error": 0.06355439432985426,
+      "information_ratio": 0.3542693629368833,
+      "identity_ir_times_te": 0.022515374791076938,
+      "newey_west_t_by_lag": {
+        "3": 1.0044849830517797,
+        "4": 1.0272913433642514,
+        "5": 1.0461620979879502,
+        "6": 1.0639113417446808
+      },
+      "newey_west_t_minimum": 1.0044849830517797,
+      "newey_west_decision_rule": "minimum_across_configured_lags",
+      "maximum_relative_drawdown": 0.12367183546578708,
+      "portfolio_cumulative_return": 1.492876516529845,
+      "benchmark_cumulative_return": 1.089721118535664,
+      "cumulative_excess_return_difference": 0.4031553979941811,
+      "maximum_outside_membership_weight": 0.16081400759236167,
+      "decision": "No-Go",
+      "decision_changed": false
+    },
+    {
+      "scenario": "biweekly",
+      "source": "frozen-target execution schedule sensitivity; no alpha refit or reoptimization",
+      "months": 92,
+      "annualized_excess_return": 0.015370644888838176,
+      "annualized_tracking_error": 0.06001930569756511,
+      "information_ratio": 0.2560950132660688,
+      "identity_ir_times_te": 0.015370644888838178,
+      "newey_west_t_by_lag": {
+        "3": 0.7498593132653368,
+        "4": 0.7625735131931032,
+        "5": 0.7644677520118393,
+        "6": 0.7780331631173982
+      },
+      "newey_west_t_minimum": 0.7498593132653368,
+      "newey_west_decision_rule": "minimum_across_configured_lags",
+      "maximum_relative_drawdown": 0.09699192203716733,
+      "portfolio_cumulative_return": 1.3688078729839077,
+      "benchmark_cumulative_return": 1.089721118535664,
+      "cumulative_excess_return_difference": 0.2790867544482438,
+      "maximum_outside_membership_weight": 0.1627427406935729,
+      "decision": "No-Go",
+      "decision_changed": false
+    }
+  ],
+  "decision": "No-Go"
+}

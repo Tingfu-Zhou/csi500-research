@@ -1,0 +1,41 @@
+{
+  "classification": "post_oos_causal_repair_diagnostic",
+  "historical_decision": "No-Go",
+  "new_oos_validation": false,
+  "performance": {
+    "months": 92,
+    "annualized_excess_return": 0.04928038579790758,
+    "annualized_tracking_error": 0.06824587355096423,
+    "information_ratio": 0.7221005935414729,
+    "identity_ir_times_te": 0.04928038579790758,
+    "newey_west_t_by_lag": {
+      "3": 1.9390513923739126,
+      "4": 1.9792248211104702,
+      "5": 2.0444836374401674,
+      "6": 2.1070907158877246
+    },
+    "newey_west_t_minimum": 1.9390513923739126,
+    "newey_west_decision_rule": "minimum_across_configured_lags",
+    "maximum_relative_drawdown": 0.10569541097837287,
+    "portfolio_cumulative_return": 2.0786902584702522,
+    "benchmark_cumulative_return": 1.1501342961961596,
+    "cumulative_excess_return_difference": 0.9285559622740926
+  },
+  "folds": 10,
+  "prediction_dates": 393,
+  "decision_dates": 392,
+  "prediction_only_dates_without_in_window_t1": [
+    "2026-08-31"
+  ],
+  "scope": "main capital, final constrained portfolio; no new attribution, impact2x or Go/No-Go evaluation",
+  "opening_policy": "cash; initial construction exempt from turnover, all costs charged",
+  "order_policy": "fixed adjusted units at T end-of-day; one-session validity; sell then proportional cash scaling",
+  "decision_time": "T end-of-day, after daily inputs; eligibility source T-1",
+  "limitations": [
+    "static industry mapping",
+    "historical data vintages not proven point-in-time",
+    "adjusted fractional units, no round lots or dividends cash ledger",
+    "realized full-day VWAP/volume is an execution approximation",
+    "unfilled orders expire; next weekly decision uses actual holdings and cash"
+  ]
+}
