@@ -1,0 +1,28 @@
+{
+  "repository": {
+    "branch": "d11",
+    "head": "064d93c9f7f9994484a7a982d1767daad814893b",
+    "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "protected_tracked_files": 140
+  },
+  "source_run": "d11_v1",
+  "source_verified": {
+    "verified": true,
+    "orders": 183240,
+    "decisions": 392,
+    "historical_decision": "No-Go"
+  },
+  "versions": {
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "scipy": "1.17.1",
+    "pyarrow": "25.0.1",
+    "pyqlib": "0.9.7",
+    "cvxpy": "1.9.2",
+    "clarabel": "0.11.1"
+  },
+  "preflight_passed": true,
+  "new_oos_validation": false
+}
