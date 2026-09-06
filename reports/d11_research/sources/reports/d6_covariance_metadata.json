@@ -1,0 +1,24 @@
+{
+  "as_of_date": "2018-12-28",
+  "estimator": "sklearn.covariance.LedoitWolf",
+  "frequency": "daily",
+  "annualization_factor_for_te": 252,
+  "observations": 252,
+  "included_instruments": 492,
+  "excluded_instruments": [
+    "SH600086",
+    "SH600751",
+    "SH600759",
+    "SH601869",
+    "SZ000564",
+    "SZ002147",
+    "SZ002512",
+    "SZ300197"
+  ],
+  "excluded_count": 8,
+  "shrinkage": 0.04855213233620669,
+  "minimum_eigenvalue": 3.049498548212027e-05,
+  "maximum_eigenvalue": 0.11256612445790509,
+  "usage": "ex-ante tracking-error reporting only; not an optimization constraint",
+  "matrix_file": "reports/d6_covariance_latest.npz"
+}

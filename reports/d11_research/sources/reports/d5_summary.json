@@ -1,0 +1,128 @@
+{
+  "mode": "design",
+  "upstream_d4_passed": true,
+  "versions": {
+    "lightgbm": "4.7.0",
+    "d4_lightgbm": "4.7.0"
+  },
+  "score_transform": "cross_sectional_rank_gaussian",
+  "calibration": {
+    "method": "date_balanced_zero_intercept_ols",
+    "coefficient": 0.0031260392149654263,
+    "observations": 46140,
+    "dates": 98,
+    "history_start": "2017-01-06",
+    "history_end": "2018-12-14",
+    "score_label_pearson": 0.07286865005597651
+  },
+  "calibration_scale": {
+    "calibrated_mu_mean_cross_section_std": 0.0031260392149654254,
+    "realized_alpha_decile_std": 0.0034029258891937635,
+    "scale_ratio": 0.9186327639083731,
+    "tolerance": 0.3,
+    "lower_bound": 0.0023820481224356344,
+    "upper_bound": 0.004423803655951893,
+    "passed": true,
+    "realized_alpha_scale_method": "std of validation decile mean realized 5-day excess returns"
+  },
+  "next_oos_calibration": {
+    "effective_prediction_year": 2019,
+    "coefficient": 0.0031260392149654263,
+    "history_start": "2017-01-06",
+    "history_end": "2018-12-14"
+  },
+  "dry_run_folds": [
+    {
+      "prediction_year": 2017,
+      "train_start": "2014-01-01",
+      "train_end": "2016-12-31",
+      "prediction_start": "2017-01-01",
+      "prediction_end": "2017-12-31",
+      "train_rows": 69597,
+      "train_dates": 153,
+      "prediction_rows": 22993,
+      "prediction_dates": 49,
+      "last_train_sample_date": "2016-12-16",
+      "last_train_label_end": "2016-12-26",
+      "first_prediction_sample_date": "2017-01-06",
+      "last_prediction_sample_date": "2017-12-15",
+      "purged_train_dates": 2,
+      "purge_passed": true,
+      "rank_ic_mean": 0.06670997187492626,
+      "icir": 0.916566618783288,
+      "model_file": "models/d5_lightgbm_2017.txt"
+    },
+    {
+      "prediction_year": 2018,
+      "train_start": "2014-01-01",
+      "train_end": "2017-12-31",
+      "prediction_start": "2018-01-01",
+      "prediction_end": "2018-12-31",
+      "train_rows": 93516,
+      "train_dates": 204,
+      "prediction_rows": 23147,
+      "prediction_dates": 49,
+      "last_train_sample_date": "2017-12-15",
+      "last_train_label_end": "2017-12-25",
+      "first_prediction_sample_date": "2018-01-05",
+      "last_prediction_sample_date": "2018-12-14",
+      "purged_train_dates": 2,
+      "purge_passed": true,
+      "rank_ic_mean": 0.09448082611462864,
+      "icir": 0.8900103968078029,
+      "model_file": "models/d5_lightgbm_2018.txt"
+    }
+  ],
+  "planned_oos_folds": 8,
+  "oos_data_accessed": false,
+  "leakage_checks": {
+    "timestamp_rows": 212025,
+    "timestamp_rows_by_prediction_year": {
+      "2017": 94439,
+      "2018": 117586
+    },
+    "future_perturbation_checks": 16,
+    "audit_instruments": [
+      "SH600004",
+      "SH600416",
+      "SH600757",
+      "SH601929",
+      "SZ000655",
+      "SZ002092",
+      "SZ002463",
+      "SZ300459"
+    ]
+  },
+  "model": {
+    "class": "lightgbm.LGBMRegressor",
+    "parameter_policy": "D4 defaults unchanged; random_state fixed only",
+    "parameters": {
+      "boosting_type": "gbdt",
+      "class_weight": null,
+      "colsample_bytree": 1.0,
+      "importance_type": "split",
+      "learning_rate": 0.1,
+      "max_depth": -1,
+      "min_child_samples": 20,
+      "min_child_weight": 0.001,
+      "min_split_gain": 0.0,
+      "n_estimators": 100,
+      "n_jobs": null,
+      "num_leaves": 31,
+      "objective": null,
+      "random_state": 42,
+      "reg_alpha": 0.0,
+      "reg_lambda": 0.0,
+      "subsample": 1.0,
+      "subsample_for_bin": 200000,
+      "subsample_freq": 0
+    }
+  },
+  "acceptance": {
+    "calibration_scale": true,
+    "fold_purge": true,
+    "timestamp_assertions": true,
+    "future_price_perturbation": true,
+    "passed": true
+  }
+}

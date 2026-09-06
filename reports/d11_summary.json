@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-06",
+  "base_commit": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+  "branch": "d11",
+  "classification": "post_oos_causal_repair_code_delivery",
+  "historical_decision": "No-Go",
+  "issues": {
+    "E01": "reproduced_and_repaired_in_d11",
+    "E04": "reproduced_and_repaired_in_d11",
+    "E03": "policy_execution_separated; strict historical publication vintages not established"
+  },
+  "tests": {
+    "command": "PYTHONPATH=. python -m pytest tests/test_d11_core.py tests/test_d11_pipeline.py -q",
+    "passed": 24,
+    "scope": "synthetic model/optimizer/execution integration, causal counterfactuals, Git and artifact guards"
+  },
+  "dependencies": {
+    "numpy": "2.3.5",
+    "pandas": "2.2.3",
+    "scipy": "1.17.0",
+    "scikit-learn": "1.8.0",
+    "lightgbm": "4.7.0",
+    "cvxpy": "1.9.2",
+    "clarabel": "0.11.1",
+    "pyarrow": "25.0.1",
+    "pytest": "9.1.1"
+  },
+  "report_evidence": {
+    "source_files_verified": 48,
+    "numeric_index_rows": 1650
+  },
+  "production_preflight_run": false,
+  "full_historical_backtest_run": false,
+  "corrected_alpha": null,
+  "reason_full_run_unavailable": "Original local Qlib/Tushare datasets and D9-V2 parquet artifacts are not present in this workspace."
+}

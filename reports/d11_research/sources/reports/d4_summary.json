@@ -1,0 +1,92 @@
+{
+  "mode": "design",
+  "versions": {
+    "qlib": "0.9.7",
+    "lightgbm": "4.7.0"
+  },
+  "feature_set": "Alpha158",
+  "features": {
+    "requested": 158,
+    "used": 158
+  },
+  "model": {
+    "class": "lightgbm.LGBMRegressor",
+    "parameter_policy": "installed-version defaults; random_state fixed only",
+    "parameters": {
+      "boosting_type": "gbdt",
+      "class_weight": null,
+      "colsample_bytree": 1.0,
+      "importance_type": "split",
+      "learning_rate": 0.1,
+      "max_depth": -1,
+      "min_child_samples": 20,
+      "min_child_weight": 0.001,
+      "min_split_gain": 0.0,
+      "n_estimators": 100,
+      "n_jobs": null,
+      "num_leaves": 31,
+      "objective": null,
+      "random_state": 42,
+      "reg_alpha": 0.0,
+      "reg_lambda": 0.0,
+      "subsample": 1.0,
+      "subsample_for_bin": 200000,
+      "subsample_freq": 0
+    },
+    "target_transform": "weekly cross-sectional z-score (Alpha158 default CSZScoreNorm semantics)",
+    "model_file": "models/d4_lightgbm_baseline.txt"
+  },
+  "label": {
+    "type": "excess_return",
+    "entry": "T+1_vwap",
+    "exit": "T+6_vwap",
+    "horizon_trade_days": 5,
+    "benchmark": "signal-date w_b weighted constituent return over identical VWAP window"
+  },
+  "label_quality": {
+    "minimum_observed_coverage": 0.6137203184684835,
+    "median_observed_coverage": 0.9197080291970803,
+    "hard_coverage_filter": false
+  },
+  "samples": {
+    "train_start": "2014-01-03",
+    "train_end": "2016-12-16",
+    "train_rows": 69597,
+    "train_dates": 153,
+    "validation_start": "2017-01-06",
+    "validation_end": "2018-12-14",
+    "validation_rows": 47063,
+    "validation_dates": 100,
+    "purged_train_dates": 2,
+    "last_train_label_end": "2016-12-26"
+  },
+  "validation_metrics": {
+    "observations": 100,
+    "rank_ic_mean": 0.07073489147345594,
+    "rank_ic_std": 0.088846227815411,
+    "icir": 0.7961496308027438
+  },
+  "decile_monotonicity": {
+    "adjacent_up_steps": 7,
+    "possible_adjacent_steps": 9,
+    "top_minus_bottom": 0.010026454148400353,
+    "decile_spearman": 0.9757575757575757
+  },
+  "thresholds": {
+    "rank_ic_mean_min": 0.02,
+    "icir_min": 0.25,
+    "monotonic_min_adjacent_steps": 7
+  },
+  "acceptance": {
+    "rank_ic_mean": true,
+    "icir": true,
+    "decile_monotonicity": true,
+    "passed": true
+  },
+  "figures": {
+    "rank_ic_timeseries": "reports/figures/d4_rank_ic_timeseries.png",
+    "icir": "reports/figures/d4_icir.png",
+    "ic_decay": "reports/figures/d4_ic_decay.png",
+    "decile_returns": "reports/figures/d4_decile_returns.png"
+  }
+}

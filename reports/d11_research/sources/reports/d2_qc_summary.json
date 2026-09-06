@@ -1,0 +1,59 @@
+{
+  "crosscheck": {
+    "rows": 1000,
+    "stocks": 50,
+    "trade_days": 20,
+    "max_raw_close_relative_error": 1.4932978623255837e-07,
+    "max_factor_ratio_relative_error": 0.0005277573341402823,
+    "tolerance": 0.001
+  },
+  "weights": {
+    "rows": 610000,
+    "trade_days": 1220,
+    "max_weight_sum_error": 2.220446049250313e-16,
+    "snapshot_mismatch_days": 0,
+    "min_constituents": 500,
+    "max_constituents": 500,
+    "membership_corrections": 1,
+    "synthetic_snapshot_days": 1
+  },
+  "raw_checks": {
+    "daily_basic": {
+      "rows": 3344774,
+      "duplicates": 0,
+      "trade_days": 1220,
+      "missing_trade_days": 0,
+      "anomalies": 0
+    },
+    "stk_limit": {
+      "rows": 3644272,
+      "duplicates": 0,
+      "trade_days": 1220,
+      "missing_trade_days": 0,
+      "anomalies": 0,
+      "zero_limit_placeholders": 4
+    },
+    "suspend_d": {
+      "rows": 307568,
+      "duplicates": 0,
+      "trade_days": 1220,
+      "missing_trade_days": 0,
+      "anomalies": 0
+    }
+  },
+  "qlib_anomalies": 0,
+  "tradability": {
+    "rows": 610000,
+    "duplicates": 0,
+    "can_buy_rate": 0.7734704918032786,
+    "can_sell_rate": 0.9330327868852459,
+    "suspended_rows": 40355,
+    "st_rows": 831,
+    "young_rows": 108,
+    "one_price_up_rows": 937,
+    "one_price_down_rows": 496
+  },
+  "acceptance": {
+    "passed": true
+  }
+}
