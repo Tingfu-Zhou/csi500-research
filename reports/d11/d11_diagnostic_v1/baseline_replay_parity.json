@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "maximum_errors": {
+    "daily": 0.0,
+    "returns": 0.0,
+    "targets": 0.0,
+    "orders": 0.0,
+    "trades": 0.0
+  }
+}

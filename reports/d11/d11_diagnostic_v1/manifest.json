@@ -1,0 +1,73 @@
+{
+  "status": "completed",
+  "source_run": "d11_v1",
+  "source_manifest_sha256": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+  "preflight": {
+    "repository": {
+      "branch": "d11",
+      "head": "064d93c9f7f9994484a7a982d1767daad814893b",
+      "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+      "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+      "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+      "protected_tracked_files": 140
+    },
+    "source_run": "d11_v1",
+    "source_verified": {
+      "verified": true,
+      "orders": 183240,
+      "decisions": 392,
+      "historical_decision": "No-Go"
+    },
+    "versions": {
+      "numpy": "2.4.6",
+      "pandas": "2.3.3",
+      "scipy": "1.17.1",
+      "pyarrow": "25.0.1",
+      "pyqlib": "0.9.7",
+      "cvxpy": "1.9.2",
+      "clarabel": "0.11.1"
+    },
+    "preflight_passed": true,
+    "new_oos_validation": false
+  },
+  "inputs_unchanged": true,
+  "output_sha256": {
+    "monthly_performance.parquet": "b9a9339028efb023ebd7e01b1617657f864b5faa03572dcb0142ec41e1a4afc4",
+    "pnl_components_monthly.tsv": "0de99f198c38e0661f07dad776fa5f712be0ffbfb8fca80c46a2adafe8d5b970",
+    "d11_diagnostic_report.md": "8aedfebec3fbb61d38d51fc17b6aba82e3fe5e760bad84434e82ae1696e3569d",
+    "inputs_after.json": "07c83cfa3f5acc05e91cfa024c288fa0be3ea804b63f8a6c1ecd717e7df1e8c3",
+    "common_monthly_comparison.parquet": "3b3550bb172f72adc0f771fd7ae18f7debea502248e7b37ce27d70f7416d1dc2",
+    "started.json": "fe0a2a9b864326650080746e8af0b8f874a472683eeae8b7dd174de2af2a1b7f",
+    "yearly_performance.parquet": "9b17dab195343c27fbde8538ae5bfd42f86c5a3ddac5085a48231989d06348a7",
+    "baseline_replay_parity.json": "60fc0170f043f5c571a886702887526a0002b7b3bddf392b02f8fa95e950438a",
+    "impact2x_daily.parquet": "5f1c14f6b5dac07296493adc51a72548f726bface216aa47101dbca3cca9122e",
+    "attribution_monthly.tsv": "068ef8694531361dbb34f5920d00610d7a81527476417954ce164ad978e8f2ae",
+    "daily_exposure_imputation.parquet": "f02d069a66e21b6e0a60d4da3940a0e037e78793ec6debc5388832a7c347552b",
+    "yearly_performance.tsv": "ffa78c5bbc66a0dc784eb1d574cf30e0d445963feb16002370e1432d04bc451f",
+    "impact2x_monthly.parquet": "70a083dba0fe7684c7c7332d893391e6ee70ed3b6d064db23e2cb0473af12534",
+    "attribution_daily.parquet": "b5d2c0e077840f01050f40cf8727cb59a9d5062bb995bf940ce5e878b67fe8b0",
+    "execution_by_decision.parquet": "23e81a1ade50716afbed7f2f26b44f3c47ac35b55c4da117aad95cf622c0ddb1",
+    "signal_ic.tsv": "2a40f26843eaf8fe8f28609b77d40c65213f5ee394eacef1e9c0c28cdac2cba8",
+    "impact2x_trades.parquet": "f7666049c7a7a8b2ca1a4e95d7bca906ed836b34552c13cbdaee4e5ef0d34ae6",
+    "factor_returns.parquet": "85be076705e50a4be21b20facf289881ea3943fd78ae7a984bb47768bbe255be",
+    "impact2x_audits.parquet": "3d1684da13453f477ce5376bead47ddb0bf94e66ea3ef9ca24bd6151b89e921d",
+    "reconstructed_accounting.parquet": "23631235eec8fd1469c8445f7053cdee6de360ad2c848d1075a60ae41ec15196",
+    "signal_ic.parquet": "2073000a10fab864418dc923169778815b9df33be1d540e8faa9e1a8b7f42f1b",
+    "attribution_monthly.parquet": "67c5a6e3882f30d68bc1b8848829ad4620c5028870ea06e5b44d47be71c6c9e3",
+    "yearly_ic.tsv": "960579279e4547516b5345feb073f54730c68441b8aee1dc7d0bc3d918e0ed64",
+    "summary.json": "b7476134cf3a7d617ac6475c0f1694c21a28ce25f943ddb6486dae3712085b0a",
+    "baseline_replay_monthly.parquet": "f62cdd1ac928870bfd1bc76e8a0bedf31631460ffb2c96ecb75767a3a3e1a839",
+    "execution_by_decision.tsv": "34e7f05ce211c3474727c05dd7c58f05f89244430e576abfed222dc0c7c9a7fc",
+    "monthly_performance.tsv": "2eee9c8c89e21233c11067d9b645411d29f7d58c15ff8027f4ca7242613fe889",
+    "impact2x_targets.parquet": "97b6604ca6569a92438d62dcb592a1be5dd2629e2cbf6f2f6b8af656fe8b7ab3",
+    "daily_exposures.parquet": "fce13f941306492f062c41d806dc9ed7ea812e080aa7dec54d3cda94df4fd9cd",
+    "impact2x_orders.parquet": "998258b87348144c91e9831ad3758ecd17058f6ba5ad8e6838ec3e9c39b8e049",
+    "inputs_before.json": "07c83cfa3f5acc05e91cfa024c288fa0be3ea804b63f8a6c1ecd717e7df1e8c3",
+    "impact2x_accounting.parquet": "d8e5cfb7befba6c136b6dfbee239c821379af0ab49bb591226d5acb5088b8d49",
+    "pnl_components_monthly.parquet": "d1ce0aed75b37707ce7e709befbdc26fe04fd1b03f4db0e5c59c9946d76617f4",
+    "yearly_ic.parquet": "6e65727599fcee896292e4fe7c7f7da39cf13038bcacb98f08388871b04c6b24",
+    "regression_audits.parquet": "8c6a26c45671c2343b12ff7647cf28feabc58333ac6bbaf9feb9c5f77fb6d8c9",
+    "common_monthly_comparison.tsv": "df00424f42fb056a347c57f1667ac9705d9675a421f48459e74f8b0d39320a86",
+    "exposure_parity.json": "43110223c8e7a83244501a0bf1d00f9f9e6398ea541b06dc07eeccb072dcca4f"
+  }
+}
