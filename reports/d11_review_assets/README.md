@@ -1,0 +1,1 @@
+D11ReviewSans.ttf is a renamed, regular-weight report-glyph subset of Noto Sans SC. Source: https://github.com/notofonts/noto-cjk/blob/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf . SIL Open Font License 1.1: see OFL.txt. The font is embedded to render Chinese portably; an expanded report may require a new glyph subset.
