@@ -1,0 +1,162 @@
+# D12 实验登记（第1天 初版）
+#
+# 本文件在看到任何 D12 运行结果之前写成，用于冻结 R1 / R2 的假设与规格。
+# 修改任何 frozen: true 的条目都必须在 experiment_registry.tsv 中留下记录和理由。
+# 本文件不修改 config/config.yaml，也不改变 D11 的任何已登记口径。
+
+phase: D12
+registered_on: "2026-09-08"
+registered_scope: >-
+  在远端 agent 容器内登记；仓库身份已核验，数据与运行耗时尚未在本机核验。
+plan_document: "中证500指增：一周聚焦方案 V1.2"
+
+# --- R0：比较基准 -----------------------------------------------------------
+r0:
+  frozen: true
+  source_run: d11_v1
+  diagnostic_run: d11_diagnostic_v1
+  code_commit: "663104bda3ac3bcb7cd2a8b529849c24f94efc5c"
+  d11_baseline_base_commit: "42c8870392a3d45f531cffbefbc138e5d8fbb328"
+  frozen_oos_commit: "14cf2dda745840b8bfd614b504b39b1ef66617e0"
+  frozen_oos_tag_object: "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220"
+  config_sha256: "d86661b81d9c0a1a5acea457144a6c38d4a3abdb7e321993b1fc5c9c2f7c55a3"
+  performance_window: "2019-01 .. 2026-08"
+  months: 92
+  decision_dates: 392
+  folds: 10                      # 2017-2026；注意 config d9.expected_fold_count = 8（见 R2-01）
+  saved_metrics:                 # 已由 scripts/d12_p0_monthly_recheck.py 独立复算（<=4.5e-16）
+    annualized_excess_return: 0.04928038579790758
+    annualized_tracking_error: 0.06824587355096423
+    information_ratio: 0.7221005935414729
+    newey_west_t_minimum: 1.9390513923739126
+    maximum_relative_drawdown: 0.10569541097837287   # 未在本容器独立复算，需日度路径
+    impact2x_annualized_excess_return: 0.036670152789370726
+    same_path_gross_annualized_excess_return: 0.06450905801450324
+    cost_drag_annualized: 0.015228672216595657
+  historical_decision: "No-Go"
+  attribution_quality_passed: false
+  repaired_r0:
+    status: not_established
+    note: >-
+      仅当第2天出现 A 类（改变收益/成交/信息时点）修复时新增；届时保留 D11 旧结果并记录差额，
+      不覆盖 d11_v1，也不与 R1 的冲击惩罚合并成单一"改进收益"。
+
+# --- R1：只加事前预期冲击 ---------------------------------------------------
+r1:
+  frozen: true
+  question: >-
+    固定信号与全部硬约束时，把与执行记账一致的冲击形式放进决策目标，
+    是否改善费后结果？改善来自成本还是毛收益？净超额/IR/回撤的方向由运行回答，不预设。
+  single_change: "决策目标额外扣除事前预期冲击占净值比例；其余一切不变"
+  decision_side_term: "sum_i  k * sigma_est_i * sqrt(NAV_T / A_est_i) * abs(dw_i)**1.5"
+  formula_verified: true
+  formula_verification_note: >-
+    与 src/d3_core.py trade_cost() 在同一数值输入下代数等价：执行端收取
+    notional*k*sigma*sqrt(notional/A)，其中 notional=|dw|*NAV，除以 NAV 后即上式。
+  k_decision: 0.5
+  k_execution_nominal: 0.5
+  k_execution_stress: 1.0        # 主要压力：只翻执行端；决策端仍为 0.5
+  extra_multiplier: 1.0
+  a_est:
+    definition: "截至 T 可知的最近 20 个交易日日成交额均值"
+    minimum_observations: 15
+    unavailable_policy: "禁止新增买入；必要减仓按 T 时点有效截面冲击系数项的 90 分位处理并标记"
+  sigma_est:
+    definition: "沿用原收益与日波动定义，20 日窗口"
+    minimum_observations: 20
+    fallback_daily_volatility: 0.03
+    fallback_policy: "沿用 0.03 并计数披露"
+  units: "金额与 A 用人民币；sigma 用日收益小数；目标各项统一为净值比例"
+  fixed_and_unchanged:
+    - Alpha158 预测（复用 d11_v1 已保存分数，输入哈希必须一致）
+    - 因果校准流程
+    - 股票池（原 PIT 池）
+    - 行业与 Size/Beta 约束
+    - 主动单边换手上限 0.15
+    - 强制退出处理
+    - 资金规模与原执行日历
+    - 执行端记账函数（不得因目标函数惩罚再扣一次费用）
+  implementation_risk:
+    solver: CLARABEL
+    note: >-
+      新增 |dw|^1.5 项使目标非线性，原 D7 LP 变为非线性凸问题。必须用求解器支持的等价凸表达
+      （幂锥/power cone），不能把执行端的 Python float 表达式直接搬进优化器。
+      凸成本不保证内点解；换手仍可能顶格——d11_v1 的平均目标主动换手为 0.150000，恰在上限。
+  acceptance_before_full_run:
+    - 预测冲击与执行函数在相同数值输入下的金额/净值成本一致，覆盖买、卖、零交易
+    - k=0 时旁路新增项，按原容差重现 R0：目标、订单、成交、现金、净值全部一致
+    - 扰动 T 之后的数据不改变 T 时点估计与决策
+    - 求解状态、约束违规、样本覆盖逐期记录
+  runs:
+    - id: r1_nominal
+      status: not_started
+      execution_k: 0.5
+    - id: r1_impact2x
+      status: not_started
+      execution_k: 1.0
+      note: "按实际现金/持仓反馈重跑，不是事后从净值减一倍费用"
+
+# --- R2：条件性的单一保守 LightGBM 配置 -------------------------------------
+r2:
+  frozen: true
+  conditional: true
+  question: "固定的较保守树配置能否改善跨年稳定性？"
+  is_required_deliverable: false
+  decision_deadline: "2026-09-11 12:00 Asia/Shanghai"
+  start_conditions:            # 全部满足才启动；只决定运行或顺延，不按 R1 好坏改参数
+    - R0 可信（P0 无未修复的 A 类问题）
+    - R1 名义与压力运行均已完成
+    - P2 诊断未发现未修复的数据或校准错误
+    - 按实测预计可在 2026-09-13 前留出汇总时间
+  candidate:                   # 整体作为一个已登记候选；不得事后声称某单一参数造成改善
+    learning_rate: 0.03
+    n_estimators_max: 1000
+    num_leaves: 15
+    min_child_samples: 200
+    reg_lambda: 1.0
+    colsample_bytree: 0.8
+    random_state: 42
+    early_stopping_rounds: 50
+    early_stopping_metric: "标准化目标的均方误差"
+  r0_model_for_contrast:       # 取自 reports/d11/d11_v1/fold_2019.json
+    learning_rate: 0.1
+    n_estimators: 100
+    num_leaves: 31
+    min_child_samples: 20
+    reg_lambda: 0.0
+    colsample_bytree: 1.0
+    random_state: 42
+    early_stopping: none
+    note: >-
+      除 random_state 外全部是 LightGBM 默认值，且没有早停。因此 R2 同时改变了参数块
+      **并新增了早停机制**，任何增量都不能归因到单一参数。
+  unchanged: [原 Alpha158 特征, 原 5 交易日标签, 原 PIT 池, R0 组合与执行规则]
+  not_combined_with_r1: true
+  open_question:
+    fold_count: >-
+      d11_v1 记录 10 折（2017-2026），config d9.expected_fold_count 为 8。
+      R2 启动前必须定死重训哪几折，否则耗时估算和结果口径都不可比。
+  status: not_started
+
+# --- 边界 -------------------------------------------------------------------
+boundaries:
+  max_new_candidates: {r1: 1, r2: 1}
+  forbidden:
+    - 参数搜索
+    - 临时更换模型
+    - 用历史收益挑选多个版本
+    - 本周新增 R1+R2 组合
+    - 结果不佳时补种子、加特征或改候选
+    - 删除或绕过 D11 的分支与受保护文件校验
+  freeze_results_at: "2026-09-13 晚间"
+  no_new_experiments_after: "2026-09-14"
+  thresholds_unchanged_from_d11:
+    annualized_excess_return_min: 0.035
+    information_ratio_min: 0.75
+    newey_west_t_min: 2.0
+    maximum_relative_drawdown_max: 0.10
+    specific_contribution_share_min: 0.50
+    doubled_impact_annualized_excess_min: 0.0
+  note: >-
+    候选数值即使跨过门槛，也不撤销 D11 的 No-Go，不消除历史研究选择问题，
+    归因质量仍单独列出且当前为未通过。
