@@ -1,0 +1,132 @@
+{
+  "scope": "remote",
+  "recorded_at_utc": "2026-09-08T13:08:27Z",
+  "total_seconds": 0.068,
+  "ready_for_a_registered_run": false,
+  "stages": [
+    {
+      "stage": "repository",
+      "status": "ok",
+      "seconds": 0.036,
+      "detail": {
+        "branch": "d12",
+        "head": "83b310f0dc90dd4ce20cb487ff52a5e39628f524",
+        "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+        "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+        "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+        "protected_tracked_files": 140
+      }
+    },
+    {
+      "stage": "required_inputs",
+      "status": "absent",
+      "seconds": 0.0,
+      "detail": {
+        "declared": 36,
+        "absent": 36,
+        "absent_examples": [
+          "data/.window_mode.json",
+          "data/processed/design/benchmark_weights.parquet",
+          "data/processed/design/tradability_flags.parquet",
+          "data/processed/oos_v2/benchmark_weights.parquet",
+          "data/processed/oos_v2/tradability_flags.parquet",
+          "data/processed/design/sw2021_l1_static.parquet",
+          "data/processed/design/sw2021_l1_catalog.parquet",
+          "data/raw/tushare/index_daily_H00905_CSI.parquet"
+        ],
+        "qlib_provider": "/home/tingfu/.qlib/qlib_data/cn_data_community",
+        "qlib_provider_ready": false
+      }
+    },
+    {
+      "stage": "registered_sha256",
+      "status": "mismatch",
+      "seconds": 0.001,
+      "detail": {
+        "files": {
+          "config/config.yaml": "ok",
+          "reports/d9_run_manifest.json": "ok",
+          "reports/d9_recovery_manifest.json": "ok",
+          "reports/d9_v2_feasibility_audit.json": "ok",
+          "reports/d9_v2_feasibility_dates.parquet": "absent"
+        },
+        "failed": [
+          "reports/d9_v2_feasibility_dates.parquet"
+        ]
+      }
+    },
+    {
+      "stage": "environment",
+      "status": "absent",
+      "seconds": 0.025,
+      "detail": {
+        "python": "3.11.15",
+        "platform": "Linux-6.18.44-fc-v24-x86_64-with-glibc2.39",
+        "missing_packages": [
+          "numpy",
+          "pandas",
+          "scipy",
+          "sklearn",
+          "pyarrow",
+          "matplotlib",
+          "qlib",
+          "lightgbm",
+          "cvxpy",
+          "clarabel",
+          "tushare"
+        ],
+        "pinned": {
+          "qlib": "0.9.7",
+          "lightgbm": "4.7.0",
+          "cvxpy": "1.9.2",
+          "clarabel": "0.11.1"
+        },
+        "observed": {
+          "qlib": "not installed",
+          "lightgbm": "not installed",
+          "cvxpy": "not installed",
+          "clarabel": "not installed"
+        },
+        "version_mismatches": {
+          "qlib": "not installed != 0.9.7",
+          "lightgbm": "not installed != 4.7.0",
+          "cvxpy": "not installed != 1.9.2",
+          "clarabel": "not installed != 0.11.1"
+        }
+      }
+    },
+    {
+      "stage": "saved_runs",
+      "status": "incomplete",
+      "seconds": 0.006,
+      "detail": {
+        "d11_v1": {
+          "declared": 832,
+          "missing": 416,
+          "missing_examples": [
+            "audits.parquet",
+            "daily.parquet",
+            "factor_exposures.parquet",
+            "feature_spec.parquet",
+            "inference_universe.parquet",
+            "label_coverage.parquet"
+          ],
+          "missing_all_parquet": true
+        },
+        "d11_diagnostic_v1": {
+          "declared": 37,
+          "missing": 22,
+          "missing_examples": [
+            "attribution_daily.parquet",
+            "attribution_monthly.parquet",
+            "baseline_replay_monthly.parquet",
+            "common_monthly_comparison.parquet",
+            "daily_exposure_imputation.parquet",
+            "daily_exposures.parquet"
+          ],
+          "missing_all_parquet": true
+        }
+      }
+    }
+  ]
+}

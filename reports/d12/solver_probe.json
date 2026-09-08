@@ -1,0 +1,63 @@
+{
+  "recorded_at_utc": "2026-09-08T13:08:34Z",
+  "machine": {
+    "platform": "Linux-6.18.44-fc-v24-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "cvxpy": "1.9.2",
+    "solver": "CLARABEL"
+  },
+  "problem": {
+    "names": 500,
+    "industries": 31,
+    "decisions_projected": 392,
+    "nav": 18797377.0,
+    "note": "synthetic mu and exposures; solver time only, no data or accounting"
+  },
+  "results": {
+    "r0_linear": {
+      "repeats": 20,
+      "median_seconds": 0.04246941049996167,
+      "min_seconds": 0.03963229999999385,
+      "max_seconds": 0.04811036699993565,
+      "status_counts": {
+        "optimal": 20
+      },
+      "strictly_optimal": 20,
+      "median_active_turnover": 0.15000000155454624,
+      "median_expected_impact_bp_of_nav": 0.6550437866478743,
+      "slowdown_vs_r0": 1.0,
+      "projected_full_period_minutes": 0.27746681526641626
+    },
+    "r1_penalised_split": {
+      "repeats": 20,
+      "median_seconds": 0.12991049749996364,
+      "min_seconds": 0.1185485000000881,
+      "max_seconds": 0.1988842390001082,
+      "status_counts": {
+        "optimal": 6,
+        "optimal_inaccurate": 14
+      },
+      "strictly_optimal": 6,
+      "median_active_turnover": 0.14999996022251952,
+      "median_expected_impact_bp_of_nav": 0.6206853401031174,
+      "slowdown_vs_r0": 3.05891925436735,
+      "projected_full_period_minutes": 0.8487485836664291
+    },
+    "r1_penalised_abs": {
+      "repeats": 20,
+      "median_seconds": 0.09973460650007837,
+      "min_seconds": 0.09421744500014029,
+      "max_seconds": 0.12167649500020161,
+      "status_counts": {
+        "optimal": 20
+      },
+      "strictly_optimal": 20,
+      "median_active_turnover": 0.1499999836106749,
+      "median_expected_impact_bp_of_nav": 0.620686077076732,
+      "slowdown_vs_r0": 2.3483868818986404,
+      "projected_full_period_minutes": 0.6515994291338454
+    }
+  },
+  "penalty_modes_agree_to": 2.8032816097443196e-06,
+  "caveat": "a shape for planning, not a runtime forecast for the real pipeline"
+}
