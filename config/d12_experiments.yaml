@@ -88,11 +88,13 @@ r1:
       因此执行端在 T+1 收取的正是"截至 T"的窗口。src/d12_core.py::rolling_estimates 计算
       同一统计量且不 shift，其 T 行即执行端 T+1 值：既未使用 T+1 观测，也未重复滞后。
     verified_by: "tests/test_d12_core.py::test_sigma_at_t_is_the_volatility_execution_charges_at_t_plus_one"
-    fallback_ladder_as_implemented: ["rolling", "cross_section_median", "constant_fallback"]
-    fallback_ladder_open_question: >-
-      方案 §6.2 文字为一级兜底（不足 20 观测用 0.03），执行端实际为两级（同日截面中位数 → 0.03）。
-      当前实现沿用执行端两级并在 sigma_source 列分别计数。改为一级需用户确认，
-      并在 reports/d12/experiment_registry.tsv 的 R1-OPEN-01 留痕。
+    fallback_ladder: ["rolling", "cross_section_median", "constant_fallback"]
+    fallback_ladder_decided_on: "2026-09-08"
+    fallback_ladder_decision: >-
+      用户已拍板：采用原案两级兜底（同日截面中位数 → 0.03），与执行端
+      scripts/d3_pipeline.py::add_ex_ante_volatility 完全一致。方案 §6.2 的文字只写了 0.03 一级，
+      以本条为准。两级各自计数，sigma_source 列区分 rolling / cross_section_median /
+      constant_fallback，运行时须逐期披露三档占比。R1-OPEN-01 已关闭。
   units: "金额与 A 用人民币；sigma 用日收益小数；目标各项统一为净值比例"
   fixed_and_unchanged:
     - Alpha158 预测（复用 d11_v1 已保存分数，输入哈希必须一致）
@@ -220,8 +222,43 @@ day1_findings:
     impact: 897363.806795953
     total: 2136736.2265301067
   reconciliation_entry_point: "scripts/d12_impact_reconciliation.py（只需 trades.parquet，不需 provider）"
-  not_yet_verified_on_this_machine:
-    - 本机数据完整性与恢复路线（需 --scope local）
-    - 全期实际耗时与输入哈希开销
-    - 真实数据上的 solver_status 分布
-    - 事前 A/sigma 估计相对事后实际值的误差分布
+  # --- 本机实测已回传（2026-09-08，WSL2，Python 3.11.16）-------------------
+  local_verification:
+    startup_check: "20/20 ok；36 个必需输入全在；provider 在；d11_v1 832/832、d11_diagnostic_v1 37/37 输出齐全"
+    path_chosen: "正常路径（方案 §3.2 第一行）：无需恢复，可直接进入 P0"
+    preflight: "全部阶段 ok，ready_for_a_registered_run=true，总计 14.705s"
+    input_hash_cost: "62,629 个文件 / 3.636 GiB，单遍 14.653s —— 一次运行两遍约 30s，不是瓶颈"
+    version_pins: {qlib: "0.9.7", lightgbm: "4.7.0", cvxpy: "1.9.2", clarabel: "0.11.1"}
+    solver_probe: "R0 0.0221s，R1(abs) 0.0538s（×2.43）；392 次决策 0.145 → 0.351 分钟"
+    penalty_mode_reproduced: "abs 20/20 optimal，split 6/20；两写法权重差 2.803e-06，与远端逐位一致"
+  # --- 成本函数已在真实成交上核对（scripts/d12_impact_reconciliation.py）----
+  cost_model_reconciled:
+    rows: 183240
+    filled_rows: 181880
+    identities_max_relative_deviation: 5.42e-20
+    note: >-
+      五项恒等式（冲击=名义×费率、三项线性费、合计、以及 impact/NAV = c·|dw|^1.5）
+      在 181,880 笔真实成交上偏差为 0.000e+00，仅 R1 项为 5.42e-20。四项费用合计与
+      d11_diagnostic_v1 的 summary.json 逐项差 0.000e+00。
+      **R1 的决策端函数形式已在 D11 自己的成交上验证，不再是纸面推导。**
+    recovered_c_quantiles:      # c = k*sigma*sqrt(NAV/A)，事后实际值；R1 的事前估计要落在这个量级
+      p01: 0.0011
+      p25: 0.0023
+      p50: 0.0031
+      p75: 0.0043
+      p99: 0.0093
+      mean: 0.0035
+  # --- R1 的可争取空间上限（运行前登记，防止事后把小改善说成大成功）--------
+  r1_headroom_registered_before_running:
+    impact_cny_total: 897363.806795953
+    impact_share_of_total_cost: 0.4200
+    impact_per_decision_bp_of_median_nav: 1.218
+    approximate_annualised_impact_drag_pp: 0.64      # 42.00% × 1.5229 pp/年，按 CNY 占比折算
+    statement: >-
+      冲击成本全期共 89.74 万元，约合 0.64 个百分点/年（按 CNY 占比折算，与按收益链接的
+      口径略有差异）。**这是 R1 在最理想情况下能触及的全部金额，且其中只有一部分是可避免的**——
+      少交易同时会放弃预期收益。因此 R1 的合理预期是零点几个百分点以内，
+      任何显著大于此的"改善"都应先怀疑是别的东西变了。
+    caveat: >-
+      这不是 R1 的目标值，也不是承诺。净超额/IR/回撤的方向由运行回答；
+      真实成本下降不自动意味着净收益、TE 或回撤同时改善。

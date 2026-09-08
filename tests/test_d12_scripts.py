@@ -67,6 +67,30 @@ def test_reconcile_recovers_the_impact_coefficient_that_produced_the_fills():
             recovered.quantile(float(quantile)) * 0.01 ** 1.5 * 1e4, rel=1e-12)
 
 
+def test_reconcile_separates_real_trades_from_optimiser_dust():
+    """freeze_orders keeps orders down to 1e-12 of NAV, so most rows are not trades."""
+    from scripts.d12_impact_reconciliation import DUST_THRESHOLD
+
+    trades, model = synthetic_trades(rows=200, seed=9)
+    # Half the rows become dust: a notional far below the threshold, still non-zero.
+    dust = trades.index[::2]
+    trades.loc[dust, "executed_trade_amount"] = trades.loc[dust, "signal_nav"] * 1e-10
+    for column in ["commission_cost", "transfer_fee_cost", "stamp_duty_cost", "impact_cost"]:
+        trades.loc[dust, column] = 0.0
+    trades.loc[dust, ["total_cost", "impact_rate"]] = 0.0
+    weight = trades["executed_trade_amount"].abs() / trades["signal_nav"]
+    expected = int((weight > DUST_THRESHOLD).sum())  # excludes dust and the untraded rows
+    concentration = reconcile(trades, model)["traded_weight_concentration"]
+    assert concentration["dust_threshold"] == DUST_THRESHOLD
+    assert 0 < expected < len(trades) - len(dust)  # some rows never traded at all
+    assert concentration["rows_above_threshold"] == expected
+    assert concentration["share_of_rows"] == pytest.approx(expected / len(trades), rel=1e-12)
+    # Dust carries a vanishing share of the traded weight even at half the rows.
+    assert concentration["share_of_traded_weight_above_threshold"] > 0.9999
+    assert concentration["decisions"] == trades["execution_date"].nunique()
+    assert concentration["notional_weighted_impact_rate_bp"] > 0
+
+
 def test_reconcile_reports_saved_totals_and_notices_a_broken_ledger():
     trades, model = synthetic_trades()
     saved = {"impact_cost": float(trades["impact_cost"].sum()), "total_cost": 1.0}

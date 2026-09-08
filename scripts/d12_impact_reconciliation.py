@@ -37,6 +37,10 @@ from src.d3_core import CostModel
 TRADE_COLUMNS = ["execution_date", "signal_nav", "executed_trade_amount", "commission_cost",
                  "transfer_fee_cost", "stamp_duty_cost", "impact_cost", "total_cost", "impact_rate"]
 QUANTILES = [0.01, 0.10, 0.25, 0.50, 0.75, 0.90, 0.99]
+#: `freeze_orders` keeps any order worth more than 1e-12 of NAV, so most rows are float
+#: dust rather than trades. R1's penalty only ever bites on the rest, and how many names
+#: that is decides what a convex cost can do at all.
+DUST_THRESHOLD = 1e-6
 
 
 def _deviation(observed, expected):
@@ -80,6 +84,26 @@ def reconcile(trades, model, saved_totals=None):
         (frame["impact_cost"] / frame["signal_nav"]).where(traded, 0.0).fillna(0.0),
         (coefficient * weight ** 1.5).where(traded, 0.0).fillna(0.0))
 
+    real = weight.gt(DUST_THRESHOLD).fillna(False)
+    total_weight = float(weight.fillna(0.0).sum())
+    decisions = int(frame["execution_date"].nunique())
+    notional_total = float(notional.sum())
+    concentration = {
+        "dust_threshold": DUST_THRESHOLD,
+        "decisions": decisions,
+        "rows_per_decision": len(frame) / decisions,
+        "rows_above_threshold": int(real.sum()),
+        "rows_above_threshold_per_decision": float(real.sum()) / decisions,
+        "share_of_rows": float(real.mean()),
+        "share_of_traded_weight_above_threshold":
+            float(weight.where(real, 0.0).fillna(0.0).sum() / total_weight) if total_weight else None,
+        "mean_dw_above_threshold": float(weight[real].mean()) if real.any() else None,
+        "traded_weight_per_decision": total_weight / decisions,
+        "notional_weighted_impact_rate_bp":
+            float(frame["impact_cost"].sum() / notional_total * 1e4) if notional_total else None,
+        "impact_cny_per_decision": float(frame["impact_cost"].sum()) / decisions,
+    }
+
     usable = coefficient.replace([np.inf, -np.inf], np.nan).dropna()
     totals = {name: float(frame[name].sum()) for name in
               ["commission_cost", "transfer_fee_cost", "stamp_duty_cost", "impact_cost", "total_cost"]}
@@ -97,6 +121,7 @@ def reconcile(trades, model, saved_totals=None):
             "max": float(weight.max())},
         "expected_impact_of_a_one_percent_trade_bps": {
             str(q): float(usable.quantile(q) * 0.01 ** 1.5 * 1e4) for q in QUANTILES},
+        "traded_weight_concentration": concentration,
         "identities": identities,
     }
     if saved_totals:
@@ -149,6 +174,16 @@ def main():
         cost = result["expected_impact_of_a_one_percent_trade_bps"][quantile]
         print(f"  p{float(quantile) * 100:>5.1f}  c = {value:10.4f}   "
               f"a 1% trade would expect {cost:7.2f} bp of NAV")
+    concentration = result["traded_weight_concentration"]
+    print(f"\nwhere the turnover actually sits (dust threshold |dw| > {DUST_THRESHOLD:g}):")
+    print(f"  {concentration['rows_per_decision']:.1f} order rows per decision, of which "
+          f"{concentration['rows_above_threshold_per_decision']:.1f} are real trades "
+          f"({concentration['share_of_rows']:.2%} of all rows)")
+    print(f"  those carry {concentration['share_of_traded_weight_above_threshold']:.4%} of traded weight, "
+          f"mean |dw| = {concentration['mean_dw_above_threshold']:.4%}")
+    print(f"  notional-weighted impact rate = "
+          f"{concentration['notional_weighted_impact_rate_bp']:.3f} bp; "
+          f"{concentration['impact_cny_per_decision']:.0f} cny per decision")
     for name, item in result.get("against_saved_summary", {}).items():
         print(f"  total {name:<20} recomputed {item['recomputed']:16.4f}  "
               f"saved {item['saved']:16.4f}  diff {item['difference']:+.3e}")
