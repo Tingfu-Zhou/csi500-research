@@ -1,0 +1,33 @@
+{
+  "record_scope": "local",
+  "recorded_at_utc": "2026-09-08T16:15:08Z",
+  "repository": {
+    "branch": "d12",
+    "head": "196c48181f71e1982a7c36871a3afc55d5a18df5",
+    "base_commit": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "frozen_oos_commit": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "protected_tracked_files": 140,
+    "protected_files_intact": true,
+    "uncommitted_code_or_config": []
+  },
+  "r0": {
+    "source_run": "d11_v1",
+    "diagnostic_run": "d11_diagnostic_v1",
+    "config_sha256": "d86661b81d9c0a1a5acea457144a6c38d4a3abdb7e321993b1fc5c9c2f7c55a3",
+    "source_manifest_sha256_declared_by_diagnostic": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+    "source_manifest_sha256_recomputed": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+    "coverage": {
+      "d11_v1 (source run)": {
+        "declared": 832,
+        "missing": 0,
+        "missing_all_parquet": true
+      },
+      "d11_diagnostic_v1": {
+        "declared": 37,
+        "missing": 0,
+        "missing_all_parquet": true
+      }
+    }
+  },
+  "blocking_rows": []
+}

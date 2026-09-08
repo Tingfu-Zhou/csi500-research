@@ -1,0 +1,103 @@
+{
+  "rows": 183240,
+  "filled_rows": 181880,
+  "impact_coefficient_config": 0.5,
+  "totals_cny": {
+    "commission_cost": 340574.20553461707,
+    "transfer_fee_cost": 22704.94703564114,
+    "stamp_duty_cost": 876093.2671638953,
+    "impact_cost": 897363.806795953,
+    "total_cost": 2136736.2265301067
+  },
+  "recovered_coefficient_c": {
+    "definition": "c = k * sigma * sqrt(NAV / A), realised; R1 must estimate this at T",
+    "count": 181880,
+    "quantiles": {
+      "0.01": 0.0010523866848641409,
+      "0.1": 0.0017357272739379492,
+      "0.25": 0.0023077977877230538,
+      "0.5": 0.003143475862032509,
+      "0.75": 0.004279500826914282,
+      "0.9": 0.005692722415919897,
+      "0.99": 0.00929865597532548
+    },
+    "mean": 0.0035004575818723726
+  },
+  "traded_weight_dw": {
+    "quantiles": {
+      "0.01": 1.9848332596770418e-12,
+      "0.1": 1.1936179054607991e-11,
+      "0.25": 3.1995477111866904e-11,
+      "0.5": 8.684948748118457e-11,
+      "0.75": 2.583783225722798e-10,
+      "0.9": 1.7474437239251773e-09,
+      "0.99": 0.017382118928210448
+    },
+    "max": 0.03771708904382852
+  },
+  "expected_impact_of_a_one_percent_trade_bps": {
+    "0.01": 0.010523866848641409,
+    "0.1": 0.01735727273937949,
+    "0.25": 0.023077977877230538,
+    "0.5": 0.03143475862032509,
+    "0.75": 0.04279500826914282,
+    "0.9": 0.05692722415919897,
+    "0.99": 0.0929865597532548
+  },
+  "identities": {
+    "impact_cost == notional * impact_rate": {
+      "max_absolute": 0.0,
+      "max_relative": 0.0
+    },
+    "commission_cost == notional * commission_rate": {
+      "max_absolute": 0.0,
+      "max_relative": 0.0
+    },
+    "transfer_fee_cost == notional * transfer_fee_rate": {
+      "max_absolute": 0.0,
+      "max_relative": 0.0
+    },
+    "stamp_duty_cost == notional * stamp_rate on sells only": {
+      "max_absolute": 0.0,
+      "max_relative": 0.0
+    },
+    "total_cost == sum of the four components": {
+      "max_absolute": 0.0,
+      "max_relative": 0.0
+    },
+    "impact_cost / NAV == c * |dw| ** 1.5 (the R1 term)": {
+      "max_absolute": 5.421010862427522e-20,
+      "max_relative": 5.421010862427522e-20
+    }
+  },
+  "against_saved_summary": {
+    "commission_cost": {
+      "recomputed": 340574.20553461707,
+      "saved": 340574.20553461707,
+      "difference": 0.0
+    },
+    "transfer_fee_cost": {
+      "recomputed": 22704.94703564114,
+      "saved": 22704.94703564114,
+      "difference": 0.0
+    },
+    "stamp_duty_cost": {
+      "recomputed": 876093.2671638953,
+      "saved": 876093.2671638953,
+      "difference": 0.0
+    },
+    "impact_cost": {
+      "recomputed": 897363.806795953,
+      "saved": 897363.806795953,
+      "difference": 0.0
+    },
+    "total_cost": {
+      "recomputed": 2136736.2265301067,
+      "saved": 2136736.2265301067,
+      "difference": 0.0
+    }
+  },
+  "identities_max_relative_deviation": 5.421010862427522e-20,
+  "identities_hold": true,
+  "source_run": "reports/d11/d11_v1"
+}
