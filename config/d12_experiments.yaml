@@ -1,0 +1,264 @@
+# D12 实验登记（第1天 初版）
+#
+# 本文件在看到任何 D12 运行结果之前写成，用于冻结 R1 / R2 的假设与规格。
+# 修改任何 frozen: true 的条目都必须在 experiment_registry.tsv 中留下记录和理由。
+# 本文件不修改 config/config.yaml，也不改变 D11 的任何已登记口径。
+
+phase: D12
+registered_on: "2026-09-08"
+registered_scope: >-
+  在远端 agent 容器内登记；仓库身份已核验，数据与运行耗时尚未在本机核验。
+plan_document: "中证500指增：一周聚焦方案 V1.2"
+
+# --- R0：比较基准 -----------------------------------------------------------
+r0:
+  frozen: true
+  source_run: d11_v1
+  diagnostic_run: d11_diagnostic_v1
+  code_commit: "663104bda3ac3bcb7cd2a8b529849c24f94efc5c"
+  d11_baseline_base_commit: "42c8870392a3d45f531cffbefbc138e5d8fbb328"
+  frozen_oos_commit: "14cf2dda745840b8bfd614b504b39b1ef66617e0"
+  frozen_oos_tag_object: "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220"
+  config_sha256: "d86661b81d9c0a1a5acea457144a6c38d4a3abdb7e321993b1fc5c9c2f7c55a3"
+  performance_window: "2019-01 .. 2026-08"
+  months: 92
+  decision_dates: 392
+  folds: 10                      # 2017-2026；注意 config d9.expected_fold_count = 8（见 R2-01）
+  saved_metrics:                 # 已由 scripts/d12_p0_monthly_recheck.py 独立复算（<=4.5e-16）
+    annualized_excess_return: 0.04928038579790758
+    annualized_tracking_error: 0.06824587355096423
+    information_ratio: 0.7221005935414729
+    newey_west_t_minimum: 1.9390513923739126
+    maximum_relative_drawdown: 0.10569541097837287   # 未在本容器独立复算，需日度路径
+    impact2x_annualized_excess_return: 0.036670152789370726
+    same_path_gross_annualized_excess_return: 0.06450905801450324
+    cost_drag_annualized: 0.015228672216595657
+  historical_decision: "No-Go"
+  attribution_quality_passed: false
+  repaired_r0:
+    status: not_established
+    note: >-
+      仅当第2天出现 A 类（改变收益/成交/信息时点）修复时新增；届时保留 D11 旧结果并记录差额，
+      不覆盖 d11_v1，也不与 R1 的冲击惩罚合并成单一"改进收益"。
+
+# --- R1：只加事前预期冲击 ---------------------------------------------------
+r1:
+  frozen: true
+  question: >-
+    固定信号与全部硬约束时，把与执行记账一致的冲击形式放进决策目标，
+    是否改善费后结果？改善来自成本还是毛收益？净超额/IR/回撤的方向由运行回答，不预设。
+  single_change: "决策目标额外扣除事前预期冲击占净值比例；其余一切不变"
+  decision_side_term: "sum_i  k * sigma_est_i * sqrt(NAV_T / A_est_i) * abs(dw_i)**1.5"
+  formula_verified: true
+  formula_verification_note: >-
+    与 src/d3_core.py trade_cost() 在同一数值输入下代数等价：执行端收取
+    notional*k*sigma*sqrt(notional/A)，其中 notional=|dw|*NAV，除以 NAV 后即上式。
+  # --- 第1天新增：把上面两条从"推断"升级为"可执行验证" ---
+  formula_verified_by: "tests/test_d12_core.py::test_expected_impact_equals_trade_cost_impact"
+  no_double_count_verified_by: >-
+    tests/test_d12_core.py::test_r0_objective_carries_no_impact_term_so_r1_cannot_double_count
+    —— optimize_at_signal 的 fee 只含佣金/过户费/印花税；把 impact_coefficient 改成
+    0.0 / 0.5 / 5.0，目标权重逐元素完全相同，故冲击项确为新增而非重复扣除。
+  implementation_module: "src/d12_core.py"
+  penalty_expression:
+    mode: "abs"                  # cp.power(cp.abs(w - old), 1.5)
+    alternative: "split"         # cp.power(cp.pos(d),1.5) + cp.power(cp.pos(-d),1.5)
+    decided_on: "2026-09-08"
+    evidence: >-
+      scripts/d12_solver_probe.py --repeats 20（500 只 / 31 行业 / 真实约束 / CLARABEL）：
+      abs 20/20 返回 optimal；split 仅 6/20，其余 optimal_inaccurate；两种写法权重差 2.8e-06。
+      optimize_at_signal 只接受 optimal，其余抛 PortfolioOptimizationError，故默认取 abs。
+    open: "合成数据上的状态分布不等于真实数据；9/11 实现时必须逐期记录 solver_status"
+  k_decision: 0.5
+  k_execution_nominal: 0.5
+  k_execution_stress: 1.0        # 主要压力：只翻执行端；决策端仍为 0.5
+  extra_multiplier: 1.0
+  a_est:
+    definition: "截至 T 可知的最近 20 个交易日日成交额均值"
+    minimum_observations: 15
+    unavailable_policy: "禁止新增买入；必要减仓按 T 时点有效截面冲击系数项的 90 分位处理并标记"
+  sigma_est:
+    definition: "沿用原收益与日波动定义，20 日窗口"
+    minimum_observations: 20
+    fallback_daily_volatility: 0.03
+    fallback_policy: "沿用 0.03 并计数披露"
+    # --- 第1天新增：可得时点已查明 ---
+    availability: >-
+      scripts/d3_pipeline.py::add_ex_ante_volatility 先算 20 日滚动标准差再 shift(1)，
+      因此执行端在 T+1 收取的正是"截至 T"的窗口。src/d12_core.py::rolling_estimates 计算
+      同一统计量且不 shift，其 T 行即执行端 T+1 值：既未使用 T+1 观测，也未重复滞后。
+    verified_by: "tests/test_d12_core.py::test_sigma_at_t_is_the_volatility_execution_charges_at_t_plus_one"
+    fallback_ladder: ["rolling", "cross_section_median", "constant_fallback"]
+    fallback_ladder_decided_on: "2026-09-08"
+    fallback_ladder_decision: >-
+      用户已拍板：采用原案两级兜底（同日截面中位数 → 0.03），与执行端
+      scripts/d3_pipeline.py::add_ex_ante_volatility 完全一致。方案 §6.2 的文字只写了 0.03 一级，
+      以本条为准。两级各自计数，sigma_source 列区分 rolling / cross_section_median /
+      constant_fallback，运行时须逐期披露三档占比。R1-OPEN-01 已关闭。
+  units: "金额与 A 用人民币；sigma 用日收益小数；目标各项统一为净值比例"
+  fixed_and_unchanged:
+    - Alpha158 预测（复用 d11_v1 已保存分数，输入哈希必须一致）
+    - 因果校准流程
+    - 股票池（原 PIT 池）
+    - 行业与 Size/Beta 约束
+    - 主动单边换手上限 0.15
+    - 强制退出处理
+    - 资金规模与原执行日历
+    - 执行端记账函数（不得因目标函数惩罚再扣一次费用）
+  implementation_risk:
+    solver: CLARABEL
+    note: >-
+      新增 |dw|^1.5 项使目标非线性，原 D7 LP 变为非线性凸问题。必须用求解器支持的等价凸表达
+      （幂锥/power cone），不能把执行端的 Python float 表达式直接搬进优化器。
+      凸成本不保证内点解；换手仍可能顶格——d11_v1 的平均目标主动换手为 0.150000，恰在上限。
+    # --- 第1天新增：实测 ---
+    solve_cost_measured: >-
+      合成数据 500 只、31 行业、真实约束下 CLARABEL 中位耗时 R0 0.040s / R1 0.100s（×2.5），
+      392 次决策合计 0.26 → 0.65 分钟。求解不是瓶颈；每次运行前后各一遍 3.90 GB 输入 SHA256 才是。
+      本机实测待回传后替换此条。
+    turnover_still_at_cap: >-
+      探针中加入惩罚后主动换手仍为 0.1500。与方案 §6.3 一致：凸边际成本可能减少顶格解，但不保证内点解。
+    participation_cap_asymmetry: >-
+      trade_cost 拒绝超过当日成交额 5% 的成交，execute_orders 先截断数量；R1 决策端惩罚无此上限，
+      大额交易按"能全部成交"定价。是否给决策端加同一上限见 R1-OPEN-02，9/11 实现时决定。
+  acceptance_before_full_run:
+    # 已通过（tests/test_d12_core.py，28 项，pandas 2.3.3 与 3.0.5 各跑通一次）
+    - [done, 预测冲击与执行函数在相同数值输入下的金额/净值成本一致，覆盖买、卖、零交易]
+    - [done, 扰动 T 之后的数据不改变 T 时点估计]
+    - [done, "k=0 结构性旁路：不把零值非线性项留在目标里改变锥结构，缺失 A 的禁买规则同时旁路"]
+    # 仍待全期运行验证
+    - [pending, "k=0 全期重放按原容差重现 R0：目标、订单、成交、现金、净值全部一致"]
+    - [pending, 求解状态、约束违规、样本覆盖逐期记录]
+    - [pending, 事前 c 与 trades.parquet 反解出的事后 c 的误差分布已披露]
+  runs:
+    - id: r1_nominal
+      status: not_started
+      execution_k: 0.5
+    - id: r1_impact2x
+      status: not_started
+      execution_k: 1.0
+      note: "按实际现金/持仓反馈重跑，不是事后从净值减一倍费用"
+
+# --- R2：条件性的单一保守 LightGBM 配置 -------------------------------------
+r2:
+  frozen: true
+  conditional: true
+  question: "固定的较保守树配置能否改善跨年稳定性？"
+  is_required_deliverable: false
+  decision_deadline: "2026-09-11 12:00 Asia/Shanghai"
+  start_conditions:            # 全部满足才启动；只决定运行或顺延，不按 R1 好坏改参数
+    - R0 可信（P0 无未修复的 A 类问题）
+    - R1 名义与压力运行均已完成
+    - P2 诊断未发现未修复的数据或校准错误
+    - 按实测预计可在 2026-09-13 前留出汇总时间
+  candidate:                   # 整体作为一个已登记候选；不得事后声称某单一参数造成改善
+    learning_rate: 0.03
+    n_estimators_max: 1000
+    num_leaves: 15
+    min_child_samples: 200
+    reg_lambda: 1.0
+    colsample_bytree: 0.8
+    random_state: 42
+    early_stopping_rounds: 50
+    early_stopping_metric: "标准化目标的均方误差"
+  r0_model_for_contrast:       # 取自 reports/d11/d11_v1/fold_2019.json
+    learning_rate: 0.1
+    n_estimators: 100
+    num_leaves: 31
+    min_child_samples: 20
+    reg_lambda: 0.0
+    colsample_bytree: 1.0
+    random_state: 42
+    early_stopping: none
+    note: >-
+      除 random_state 外全部是 LightGBM 默认值，且没有早停。因此 R2 同时改变了参数块
+      **并新增了早停机制**，任何增量都不能归因到单一参数。
+  unchanged: [原 Alpha158 特征, 原 5 交易日标签, 原 PIT 池, R0 组合与执行规则]
+  not_combined_with_r1: true
+  open_question:
+    fold_count: >-
+      d11_v1 记录 10 折（2017-2026），config d9.expected_fold_count 为 8。
+      R2 启动前必须定死重训哪几折，否则耗时估算和结果口径都不可比。
+  status: not_started
+
+# --- 边界 -------------------------------------------------------------------
+boundaries:
+  max_new_candidates: {r1: 1, r2: 1}
+  forbidden:
+    - 参数搜索
+    - 临时更换模型
+    - 用历史收益挑选多个版本
+    - 本周新增 R1+R2 组合
+    - 结果不佳时补种子、加特征或改候选
+    - 删除或绕过 D11 的分支与受保护文件校验
+  freeze_results_at: "2026-09-13 晚间"
+  no_new_experiments_after: "2026-09-14"
+  thresholds_unchanged_from_d11:
+    annualized_excess_return_min: 0.035
+    information_ratio_min: 0.75
+    newey_west_t_min: 2.0
+    maximum_relative_drawdown_max: 0.10
+    specific_contribution_share_min: 0.50
+    doubled_impact_annualized_excess_min: 0.0
+  note: >-
+    候选数值即使跨过门槛，也不撤销 D11 的 No-Go，不消除历史研究选择问题，
+    归因质量仍单独列出且当前为未通过。
+
+# --- 第1天已确立的事实（不是实验结果，是运行前必须知道的条件） ---------------
+day1_findings:
+  recorded_on: "2026-09-08"
+  r0_turnover_at_cap:
+    observed: "391/391 常规决策 target_active_turnover = 0.150000；另 1 次为建仓豁免"
+    source: "reports/d11/d11_v1/decision_*.json, n=392"
+    implication: >-
+      R0 的问题不是交易太少，而是每期用满 15% 上限。R1 要回答的是同一上限内换手是否值得，
+      不是能否放开上限。这也意味着 R1 若无改善，不能推论为"成本惩罚方向无效"。
+  solver_health_r0:
+    observed: "392/392 solver_status=optimal，fallback_used 全为 false"
+  saved_cost_totals_cny:      # reports/d11/d11_diagnostic_v1/summary.json execution.costs_cny
+    commission: 340574.20553461707
+    transfer_fee: 22704.94703564114
+    stamp_duty: 876093.2671638953
+    impact: 897363.806795953
+    total: 2136736.2265301067
+  reconciliation_entry_point: "scripts/d12_impact_reconciliation.py（只需 trades.parquet，不需 provider）"
+  # --- 本机实测已回传（2026-09-08，WSL2，Python 3.11.16）-------------------
+  local_verification:
+    startup_check: "20/20 ok；36 个必需输入全在；provider 在；d11_v1 832/832、d11_diagnostic_v1 37/37 输出齐全"
+    path_chosen: "正常路径（方案 §3.2 第一行）：无需恢复，可直接进入 P0"
+    preflight: "全部阶段 ok，ready_for_a_registered_run=true，总计 14.705s"
+    input_hash_cost: "62,629 个文件 / 3.636 GiB，单遍 14.653s —— 一次运行两遍约 30s，不是瓶颈"
+    version_pins: {qlib: "0.9.7", lightgbm: "4.7.0", cvxpy: "1.9.2", clarabel: "0.11.1"}
+    solver_probe: "R0 0.0221s，R1(abs) 0.0538s（×2.43）；392 次决策 0.145 → 0.351 分钟"
+    penalty_mode_reproduced: "abs 20/20 optimal，split 6/20；两写法权重差 2.803e-06，与远端逐位一致"
+  # --- 成本函数已在真实成交上核对（scripts/d12_impact_reconciliation.py）----
+  cost_model_reconciled:
+    rows: 183240
+    filled_rows: 181880
+    identities_max_relative_deviation: 5.42e-20
+    note: >-
+      五项恒等式（冲击=名义×费率、三项线性费、合计、以及 impact/NAV = c·|dw|^1.5）
+      在 181,880 笔真实成交上偏差为 0.000e+00，仅 R1 项为 5.42e-20。四项费用合计与
+      d11_diagnostic_v1 的 summary.json 逐项差 0.000e+00。
+      **R1 的决策端函数形式已在 D11 自己的成交上验证，不再是纸面推导。**
+    recovered_c_quantiles:      # c = k*sigma*sqrt(NAV/A)，事后实际值；R1 的事前估计要落在这个量级
+      p01: 0.0011
+      p25: 0.0023
+      p50: 0.0031
+      p75: 0.0043
+      p99: 0.0093
+      mean: 0.0035
+  # --- R1 的可争取空间上限（运行前登记，防止事后把小改善说成大成功）--------
+  r1_headroom_registered_before_running:
+    impact_cny_total: 897363.806795953
+    impact_share_of_total_cost: 0.4200
+    impact_per_decision_bp_of_median_nav: 1.218
+    approximate_annualised_impact_drag_pp: 0.64      # 42.00% × 1.5229 pp/年，按 CNY 占比折算
+    statement: >-
+      冲击成本全期共 89.74 万元，约合 0.64 个百分点/年（按 CNY 占比折算，与按收益链接的
+      口径略有差异）。**这是 R1 在最理想情况下能触及的全部金额，且其中只有一部分是可避免的**——
+      少交易同时会放弃预期收益。因此 R1 的合理预期是零点几个百分点以内，
+      任何显著大于此的"改善"都应先怀疑是别的东西变了。
+    caveat: >-
+      这不是 R1 的目标值，也不是承诺。净超额/IR/回撤的方向由运行回答；
+      真实成本下降不自动意味着净收益、TE 或回撤同时改善。

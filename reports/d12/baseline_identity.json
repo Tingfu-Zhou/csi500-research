@@ -1,0 +1,85 @@
+{
+  "record_scope": "remote agent container (fresh clone); NOT a verification of the local research machine",
+  "recorded_at_utc": "2026-09-08T10:48:53Z",
+  "phase": "D12",
+  "repository": {
+    "remote": "https://github.com/Tingfu-Zhou/csi500-research",
+    "branch": "d12",
+    "head": "663104bda3ac3bcb7cd2a8b529849c24f94efc5c",
+    "head_equals_plan_d11_code_commit": true,
+    "d11_baseline_base_commit": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "base_commit_is_ancestor_of_head": true,
+    "frozen_oos_commit": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_oos_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "frozen_oos_matches_baseline": true,
+    "frozen_oos_is_ancestor_of_head": true,
+    "protected_tracked_files": 140,
+    "protected_tracked_files_intact": true,
+    "uncommitted_code_or_config": [
+      "scripts/d12_startup_check.py"
+    ],
+    "note": "frozen-oos tag was absent from the initial clone and was restored with `git fetch --tags origin`; the tag object and commit both match config/d11_baseline.json"
+  },
+  "r0_definition": {
+    "source_run": "d11_v1",
+    "source_run_dir": "reports/d11/d11_v1",
+    "source_run_head_at_execution": "8196e43082245d07b43ff820f48f375e913b16c3",
+    "diagnostic_run": "d11_diagnostic_v1",
+    "diagnostic_run_head_at_execution": "064d93c9f7f9994484a7a982d1767daad814893b",
+    "diagnostic_source_manifest_sha256": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+    "diagnostic_source_manifest_sha256_recomputed_here": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+    "config_sha256": "d86661b81d9c0a1a5acea457144a6c38d4a3abdb7e321993b1fc5c9c2f7c55a3",
+    "folds": 10,
+    "fold_years": "2017-2026",
+    "decision_dates": 392,
+    "prediction_dates": 393,
+    "performance_months": 92,
+    "performance_window": "2019-01 .. 2026-08"
+  },
+  "baseline_metrics_verified_from_saved_run": {
+    "source": "reports/d11/d11_diagnostic_v1/{summary.json,monthly_performance.tsv}",
+    "annualized_excess_return": 0.04928038579790758,
+    "annualized_tracking_error": 0.06824587355096423,
+    "information_ratio": 0.7221005935414729,
+    "newey_west_t_minimum": 1.9390513923739126,
+    "maximum_relative_drawdown": 0.10569541097837287,
+    "impact2x_annualized_excess_return": 0.036670152789370726,
+    "same_path_gross_annualized_excess_return": 0.06450905801450324,
+    "cost_drag_annualized": 0.015228672216595657,
+    "three_block_residual_passed": false,
+    "historical_decision": "No-Go",
+    "independent_recomputation": "annualized excess, TE, IR and all four NW-t lags recomputed from monthly_performance.tsv with the standard library; agreement <= 4.5e-16",
+    "not_recomputable_here": [
+      "maximum_relative_drawdown (needs the daily relative path)",
+      "specific_share / attribution (needs attribution_daily.parquet)"
+    ]
+  },
+  "environment_of_record": {
+    "note": "versions required by src/d11_io.preflight, taken from reports/d9_v2_summary.json; NOT the container's state",
+    "pins": {
+      "qlib": "0.9.7",
+      "lightgbm": "4.7.0",
+      "cvxpy": "1.9.2",
+      "clarabel": "0.11.1"
+    },
+    "run_versions_d11_v1": {
+      "numpy": "2.4.6",
+      "pandas": "2.3.3",
+      "scipy": "1.17.1",
+      "scikit-learn": "1.9.0",
+      "pyarrow": "25.0.1",
+      "matplotlib": "3.11.1",
+      "pyqlib": "0.9.7",
+      "lightgbm": "4.7.0",
+      "cvxpy": "1.9.2",
+      "clarabel": "0.11.1"
+    }
+  },
+  "container_state": {
+    "python": "3.11.15",
+    "platform": "Linux-6.18.44-fc-v24-x86_64-with-glibc2.39",
+    "cpu_count": 4,
+    "scientific_stack_installed": false,
+    "data_directories_present": false
+  }
+}

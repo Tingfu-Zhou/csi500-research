@@ -1,0 +1,21 @@
+scope	category	item	required_by	expected	observed	status	blocks	recovery
+local	repository	branch	src/d11_io.verify_repository	d11 (D11 entry) / d12 (D12 work)	d12	ok	d11_diagnose.py refuses any branch but d11	D12 uses scripts/d12_preflight.py; do not delete the D11 branch guard
+local	repository	HEAD	R0 identity	663104bda3ac3bcb7cd2a8b529849c24f94efc5c	196c48181f71e1982a7c36871a3afc55d5a18df5	ok		
+local	repository	frozen-oos commit	src/d11_io.verify_repository	14cf2dda745840b8bfd614b504b39b1ef66617e0	14cf2dda745840b8bfd614b504b39b1ef66617e0	ok		
+local	repository	frozen-oos tag object	src/d11_io.verify_repository	56fcc1d83fcdd6d40f6e7d8066f819c5ae828220	56fcc1d83fcdd6d40f6e7d8066f819c5ae828220	ok		
+local	repository	protected tracked files	src/d11_io.verify_repository	140 files unchanged	140 intact, 0 altered	ok		
+local	repository	uncommitted code/config	src/d11_io.verify_repository	none	0 path(s)	ok		commit or stash before any registered run
+local	source input	config-declared required_inputs	src/d11_io.preflight	36 files	36 present, 0 absent	ok		
+local	source input	qlib provider_uri	src/d11_io.preflight	/home/tingfu/.qlib/qlib_data/cn_data_community	present	ok		
+local	registered run	d11_v1 (source run)	R0 replay / P0 drill-down	832 manifest outputs	832 present, 0 missing (0 parquet)	ok		
+local	registered run	d11_diagnostic_v1	R0 replay / P0 drill-down	37 manifest outputs	37 present, 0 missing (0 parquet)	ok		
+local	registered sha256	config/config.yaml	src/d11_io.preflight	d86661b81d9c0a1a	d86661b81d9c0a1a	ok		
+local	registered sha256	reports/d9_run_manifest.json	src/d11_io.preflight	dd513b90e0c7490e	dd513b90e0c7490e	ok		
+local	registered sha256	reports/d9_recovery_manifest.json	src/d11_io.preflight	f702eb124039f6ee	f702eb124039f6ee	ok		
+local	registered sha256	reports/d9_v2_feasibility_audit.json	src/d11_io.preflight	456a6c3df5a90e03	456a6c3df5a90e03	ok		
+local	registered sha256	reports/d9_v2_feasibility_dates.parquet	src/d11_io.preflight	9ff683a3cbb0607f	9ff683a3cbb0607f	ok		
+local	environment	python packages	src/d11_io.preflight	12 importable	12 importable, 0 absent	ok		install the pinned versions recorded in reports/d9_v2_summary.json
+local	environment	qlib version pin	src/d11_io.preflight	0.9.7	0.9.7	ok		
+local	environment	lightgbm version pin	src/d11_io.preflight	4.7.0	4.7.0	ok		
+local	environment	cvxpy version pin	src/d11_io.preflight	1.9.2	1.9.2	ok		
+local	environment	clarabel version pin	src/d11_io.preflight	0.11.1	0.11.1	ok		
