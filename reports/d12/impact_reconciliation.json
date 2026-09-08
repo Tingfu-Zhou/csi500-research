@@ -44,6 +44,19 @@
     "0.9": 0.05692722415919897,
     "0.99": 0.0929865597532548
   },
+  "traded_weight_concentration": {
+    "dust_threshold": 1e-06,
+    "decisions": 392,
+    "rows_per_decision": 467.44897959183675,
+    "rows_above_threshold": 13277,
+    "rows_above_threshold_per_decision": 33.869897959183675,
+    "share_of_rows": 0.07245688714254529,
+    "share_of_traded_weight_above_threshold": 0.999999442536903,
+    "mean_dw_above_threshold": 0.009070867211289718,
+    "traded_weight_per_decision": 0.3072295181168064,
+    "notional_weighted_impact_rate_bp": 3.952283197962604,
+    "impact_cny_per_decision": 2289.1933846835536
+  },
   "identities": {
     "impact_cost == notional * impact_rate": {
       "max_absolute": 0.0,
