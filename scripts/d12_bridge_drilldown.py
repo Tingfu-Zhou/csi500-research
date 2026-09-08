@@ -86,7 +86,7 @@ def security_stage(dates, exposures, config, lookback):
             continue
         # Enough lead-in for the forward fill `d11_price_panels` applies; the reproduction
         # check below is what proves the window was long enough.
-        start = trade_date - pd.Timedelta(days=lookback)
+        start = pd.Timestamp(trade_date) - pd.Timedelta(days=int(lookback))
         market = load_qlib_market(access, sorted(weights.index), start, trade_date,
                                   float(config["tradability"]["qlib_amount_multiplier_to_cny"]))
         close_dtype = str(market["close"].dtype)

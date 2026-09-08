@@ -6,6 +6,7 @@ unobservable rather than treating it as a zero, and whatever the index earned on
 stays in the bridge.
 """
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -184,3 +185,17 @@ def test_reproduction_gate_is_the_larger_of_the_two_arms():
     assert verdict["tolerance"] == pytest.approx(1e-6)
     # Loosening is never silent: the error and the gate both travel with the verdict.
     assert set(verdict) == {"rebuilt", "saved", "error", "relative_error", "tolerance", "reproduced"}
+
+
+def test_summarise_handles_days_with_no_weight_row_without_a_downcast_warning():
+    """The left merge leaves NaN in membership_changed; NaN must read as 'no change'."""
+    attribution = attribution_panel([0.001, 0.002, 0.003])
+    exposure_dates = [d.strftime("%Y-%m-%d") for d in attribution["exposure_date"]]
+    # Only the first exposure date has weights, so the other two rows merge to NaN.
+    timeline = membership_timeline(weight_panel(exposure_dates[:1], {exposure_dates[0]: ["A", "B"]}))
+    frame = bridge_by_day(attribution, timeline)
+    assert frame["membership_changed"].isna().sum() == 2
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        summary = summarise_bridge(frame)
+    assert summary["membership_change_days"]["days"] == 0
