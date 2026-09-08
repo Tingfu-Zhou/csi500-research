@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.d12_bridge import (basket_contributions, bridge_by_day, membership_timeline,
-                            month_share_of_bridge, summarise_bridge)
+                            month_share_of_bridge, reproduction_verdict, summarise_bridge)
 from src.d12_repo import D12Error
 
 
@@ -160,3 +160,27 @@ def test_basket_contributions_sum_to_the_bridge_plus_the_official_return():
     bridge = summary["basket_return"] - official
     assert summary["basket_return"] == pytest.approx(bridge + official)
     assert bridge == pytest.approx(0.6 * 0.03 + 0.4 * -0.01 - official)
+
+
+# --- the gate that decides whether a decomposition may be shown at all ---------------
+
+def test_reproduction_gate_accepts_float32_noise_and_rejects_a_real_gap():
+    """Qlib stores prices as float32, so a faithful rebuild lands ~1e-7 relative away."""
+    saved = 0.01059713
+    float32_noise = reproduction_verdict(saved + 1.4e-09, saved)
+    assert float32_noise["reproduced"]
+    assert float32_noise["relative_error"] == pytest.approx(1.4e-09 / saved, rel=1e-6)
+    # A gap big enough to reorder basis-point contributions must still fail.
+    assert not reproduction_verdict(saved + 1e-05, saved)["reproduced"]
+    # The absolute arm still governs when the saved value is ~0.
+    assert reproduction_verdict(1e-11, 0.0)["reproduced"]
+    assert not reproduction_verdict(1e-08, 0.0)["reproduced"]
+
+
+def test_reproduction_gate_is_the_larger_of_the_two_arms():
+    verdict = reproduction_verdict(1.0, 1.0, absolute_tolerance=1e-3, relative_tolerance=1e-9)
+    assert verdict["tolerance"] == pytest.approx(1e-3)
+    verdict = reproduction_verdict(1.0, 1.0, absolute_tolerance=1e-12, relative_tolerance=1e-6)
+    assert verdict["tolerance"] == pytest.approx(1e-6)
+    # Loosening is never silent: the error and the gate both travel with the verdict.
+    assert set(verdict) == {"rebuilt", "saved", "error", "relative_error", "tolerance", "reproduced"}

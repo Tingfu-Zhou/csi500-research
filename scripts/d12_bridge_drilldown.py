@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.d12_bridge import (basket_contributions, bridge_by_day, membership_timeline,
-                            month_share_of_bridge, summarise_bridge)
+                            month_share_of_bridge, reproduction_verdict, summarise_bridge)
 from src.d12_repo import D12Error
 
 #: The three months the plan names, which are the top three by |bridge| and, because
@@ -51,14 +51,31 @@ def load_inputs(run, diagnostic, config):
     return pd.read_parquet(attribution), pd.read_parquet(weights)
 
 
-def security_stage(dates, exposures_path, config, lookback):
+def load_benchmark_weights(diagnostic, config):
+    """The weight vector `attribute_d11` actually priced with, and where it came from.
+
+    The diagnostic rebuilds a DAILY exposure panel from benchmark_weights.parquet and
+    passes that to the attribution; `d11_v1/factor_exposures.parquet` holds the weekly
+    signal-date exposures instead, so most exposure dates are simply absent from it.
+    """
+    daily = ROOT / diagnostic / "daily_exposures.parquet"
+    if daily.is_file():
+        frame = pd.read_parquet(daily, columns=["trade_date", "instrument", "benchmark_weight"])
+        source = str(daily.relative_to(ROOT))
+    else:
+        upstream = ROOT / Path(config["d9"]["v2"]["processed_oos_dir"]) / "benchmark_weights.parquet"
+        frame = pd.read_parquet(upstream, columns=["trade_date", "instrument", "weight"])
+        frame = frame.rename(columns={"weight": "benchmark_weight"})
+        source = str(upstream.relative_to(ROOT))
+    frame["trade_date"] = pd.to_datetime(frame["trade_date"]).dt.normalize()
+    return frame, source
+
+
+def security_stage(dates, exposures, config, lookback):
     """Rebuild the basket for `dates` and decompose it, or explain why it could not be."""
     from src.data_access import ResearchDataAccess
     from scripts.d3_pipeline import load_qlib_market
 
-    exposures = pd.read_parquet(exposures_path, columns=["trade_date", "instrument",
-                                                         "benchmark_weight"])
-    exposures["trade_date"] = pd.to_datetime(exposures["trade_date"]).dt.normalize()
     access = ResearchDataAccess(ROOT)
     results = {}
     for trade_date, exposure_date in dates:
@@ -72,6 +89,7 @@ def security_stage(dates, exposures_path, config, lookback):
         start = trade_date - pd.Timedelta(days=lookback)
         market = load_qlib_market(access, sorted(weights.index), start, trade_date,
                                   float(config["tradability"]["qlib_amount_multiplier_to_cny"]))
+        close_dtype = str(market["close"].dtype)
         close = market.pivot(index="trade_date", columns="instrument", values="close").sort_index()
         close = close.where(close.gt(0) & np.isfinite(close)).ffill()
         if trade_date not in close.index or exposure_date not in close.index:
@@ -80,7 +98,7 @@ def security_stage(dates, exposures_path, config, lookback):
         returns = close.loc[trade_date] / close.loc[exposure_date] - 1
         table, summary = basket_contributions(weights, returns.reindex(weights.index))
         results[str(trade_date.date())] = {"exposure_date": str(exposure_date.date()), **summary,
-                                           "table": table}
+                                           "close_dtype": close_dtype, "table": table}
     return results
 
 
@@ -92,7 +110,11 @@ def main():
     parser.add_argument("--securities", action="store_true",
                         help="also run stage 2; needs the Qlib provider")
     parser.add_argument("--top-securities", type=int, default=25)
-    parser.add_argument("--tolerance", type=float, default=1e-10)
+    parser.add_argument("--tolerance", type=float, default=1e-10,
+                        help="absolute arm of the reproduction gate")
+    parser.add_argument("--relative-tolerance", type=float, default=1e-6,
+                        help="relative arm; Qlib stores prices as float32, so a faithful "
+                             "rebuild agrees to ~1e-7 relative, not to float64")
     parser.add_argument("--lookback-days", type=int, default=180)
     parser.add_argument("--run", default="reports/d11/d11_v1")
     parser.add_argument("--diagnostic", default="reports/d11/d11_diagnostic_v1")
@@ -156,8 +178,10 @@ def main():
 
     if args.securities:
         pairs = [(row["trade_date"], row["exposure_date"]) for row in worst.to_dict("records")]
-        stage2 = security_stage(pairs, ROOT / args.run / "factor_exposures.parquet",
-                                config, args.lookback_days)
+        exposures, weight_source = load_benchmark_weights(args.diagnostic, config)
+        print(f"\nstage 2 weights from {weight_source}")
+        stage2 = security_stage(pairs, exposures, config, args.lookback_days)
+        payload["stage2_weight_source"] = weight_source
         saved = focus.set_index("trade_date")
         payload["securities"] = {}
         print("\nstage 2: rebuilding the basket per day")
@@ -169,20 +193,27 @@ def main():
             table = item.pop("table")
             day = pd.Timestamp(key)
             expected = float(saved.loc[day, "benchmark_bridge"] + saved.loc[day, "benchmark_return"])
+            verdict = reproduction_verdict(item["basket_return"], expected,
+                                           absolute_tolerance=args.tolerance,
+                                           relative_tolerance=args.relative_tolerance)
             item["saved_basket_return"] = expected
-            item["reproduction_error"] = item["basket_return"] - expected
-            item["reproduced"] = bool(abs(item["reproduction_error"]) <= args.tolerance)
-            print(f"  {key}: rebuilt basket {item['basket_return']:+.8f} vs saved "
-                  f"{expected:+.8f}  error {item['reproduction_error']:+.2e}  "
-                  f"{'REPRODUCED' if item['reproduced'] else 'NOT reproduced'}")
+            item.update({f"reproduction_{k}": v for k, v in verdict.items()
+                         if k not in ("rebuilt", "saved")})
+            item["reproduced"] = verdict["reproduced"]
+            ranked = table.reindex(table["contribution"].abs().sort_values(ascending=False).index)
+            smallest = float(ranked["contribution"].abs().head(args.top_securities).min())
+            print(f"  {key}: rebuilt {item['basket_return']:+.8f} vs saved {expected:+.8f}")
+            print(f"       error {verdict['error']:+.2e} ({verdict['relative_error']:+.2e} relative, "
+                  f"close dtype {item['close_dtype']}); smallest ranked contribution "
+                  f"{smallest * 1e4:.3f} bp, so the gap is {abs(verdict['error']) / smallest:.2e} of it")
+            print(f"       {'REPRODUCED' if item['reproduced'] else 'NOT reproduced'}")
             if item["reproduced"]:
-                ranked = table.reindex(table["contribution"].abs().sort_values(ascending=False).index)
                 ranked.head(args.top_securities).to_csv(
                     out / f"bridge_securities_{key.replace('-', '')}.tsv", sep="\t")
                 item["top_contributions"] = ranked.head(args.top_securities)["contribution"].to_dict()
             else:
-                print("       decomposition withheld: widen --lookback-days, or the saved run "
-                      "used a different weight vector than factor_exposures.parquet")
+                print("       decomposition withheld: widen --lookback-days, or check that "
+                      f"{payload.get('stage2_weight_source')} is the vector the run priced with")
             names = item.get("unobservable_names", [])
             if len(names) > 50:  # a long list belongs in the TSV, not the summary
                 item["unobservable_names"] = names[:50] + [f"... {len(names) - 50} more"]

@@ -178,6 +178,23 @@ def summarise_bridge(frame, rebalance_months=("06", "12")):
     return summary
 
 
+def reproduction_verdict(rebuilt, saved, *, absolute_tolerance=1e-10, relative_tolerance=1e-6):
+    """May the rebuilt basket be decomposed, or is it too far from the saved one?
+
+    The gate is `max(absolute, relative * |saved|)`. The relative arm exists because Qlib
+    stores prices as float32: a basket rebuilt from a fresh load agrees with the saved one
+    to float32 precision (~1e-7 relative), not to float64. Judging that by an absolute
+    1e-10 would reject a faithful rebuild. What makes the looser arm safe is scale — the
+    per-security contributions being ranked are basis points (~1e-4), four to five orders
+    of magnitude above this noise, so it cannot reorder them.
+    """
+    error = float(rebuilt) - float(saved)
+    tolerance = max(float(absolute_tolerance), float(relative_tolerance) * abs(float(saved)))
+    return {"rebuilt": float(rebuilt), "saved": float(saved), "error": error,
+            "relative_error": error / abs(float(saved)) if saved else float("nan"),
+            "tolerance": tolerance, "reproduced": abs(error) <= tolerance}
+
+
 def basket_contributions(weights, returns):
     """Per-security `wb_i * r_i`, reproducing `attribute_d11`'s basket return.
 
