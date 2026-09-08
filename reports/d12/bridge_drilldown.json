@@ -1,0 +1,219 @@
+{
+  "full_period": {
+    "scope": "full period",
+    "days": 1859,
+    "absolute_bridge_total": 0.23313423341271405,
+    "signed_bridge_total": 0.01015146304476711,
+    "mean_absolute_bridge": 0.00012540840958187954,
+    "rebalance_months": {
+      "months": [
+        "06",
+        "12"
+      ],
+      "days": 317,
+      "share_of_days": 0.1705217859064013,
+      "share_of_absolute_bridge": 0.6598451282262687,
+      "mean_absolute_bridge_inside": 0.0004852759878238018,
+      "mean_absolute_bridge_outside": 5.142785037131575e-05
+    },
+    "membership_change_days": {
+      "days": 21,
+      "share_of_days": 0.011296395911780527,
+      "share_of_absolute_bridge": 0.0024722366662094037,
+      "mean_absolute_bridge_on_change_days": 2.7445857142453957e-05,
+      "mean_absolute_bridge_otherwise": 0.0001265276770471831
+    },
+    "by_snapshot_staleness": {
+      "0": {
+        "days": 96,
+        "mean_absolute_bridge": 4.6005532905287096e-05
+      },
+      "1-5": {
+        "days": 476,
+        "mean_absolute_bridge": 4.1243166372842726e-05
+      },
+      "6-10": {
+        "days": 462,
+        "mean_absolute_bridge": 0.00011498709898906224
+      },
+      "11-20": {
+        "days": 771,
+        "mean_absolute_bridge": 0.00019183880657936157
+      },
+      "21+": {
+        "days": 41,
+        "mean_absolute_bridge": 0.00018899677161096634
+      }
+    }
+  },
+  "months_in_scope": [
+    "2021-06",
+    "2025-02",
+    "2026-06"
+  ],
+  "per_month": [
+    {
+      "month": "2021-06",
+      "days": 21,
+      "signed_bridge": 0.007343142601969858,
+      "absolute_bridge": 0.01764273776875813,
+      "share_in_top_5_days": 0.728027097396634,
+      "worst_day": "2021-06-16",
+      "worst_day_bridge": -0.0035348224645306812,
+      "worst_day_membership_changed": false
+    },
+    {
+      "month": "2025-02",
+      "days": 18,
+      "signed_bridge": 0.011838699928505962,
+      "absolute_bridge": 0.014885821966004503,
+      "share_in_top_5_days": 0.9327392958692616,
+      "worst_day": "2025-02-24",
+      "worst_day_bridge": 0.012593457270997033,
+      "worst_day_membership_changed": false
+    },
+    {
+      "month": "2026-06",
+      "days": 21,
+      "signed_bridge": -0.014143518953995043,
+      "absolute_bridge": 0.018198982803511787,
+      "share_in_top_5_days": 0.8023156664225523,
+      "worst_day": "2026-06-23",
+      "worst_day_bridge": -0.004307559562952978,
+      "worst_day_membership_changed": false
+    }
+  ],
+  "worst_days": [
+    {
+      "trade_date": "2025-02-24 00:00:00",
+      "exposure_date": "2025-02-21 00:00:00",
+      "benchmark_bridge": 0.012593457270997033,
+      "benchmark_return": -0.0019963229682102845,
+      "unobservable_benchmark_weight": 0.0,
+      "month": "2025-02",
+      "abs_bridge": 0.012593457270997033,
+      "members": 500,
+      "weight_sum": 1.0,
+      "added": 0,
+      "removed": 0,
+      "added_weight": 0.0,
+      "removed_weight": 0.0,
+      "weight_l1_change": 0.022223926292474945,
+      "membership_changed": false,
+      "snapshot_date": "2025-01-27 00:00:00",
+      "days_since_snapshot": 13.0,
+      "is_snapshot_day": false
+    },
+    {
+      "trade_date": "2026-06-23 00:00:00",
+      "exposure_date": "2026-06-22 00:00:00",
+      "benchmark_bridge": -0.004307559562952978,
+      "benchmark_return": -0.020269723079963997,
+      "unobservable_benchmark_weight": 0.0,
+      "month": "2026-06",
+      "abs_bridge": 0.004307559562952978,
+      "members": 500,
+      "weight_sum": 0.9999999999999998,
+      "added": 0,
+      "removed": 0,
+      "added_weight": 0.0,
+      "removed_weight": 0.0,
+      "weight_l1_change": 0.03525230537139063,
+      "membership_changed": false,
+      "snapshot_date": "2026-05-29 00:00:00",
+      "days_since_snapshot": 15.0,
+      "is_snapshot_day": false
+    },
+    {
+      "trade_date": "2026-06-29 00:00:00",
+      "exposure_date": "2026-06-26 00:00:00",
+      "benchmark_bridge": -0.0036181596992033056,
+      "benchmark_return": 0.013633107253153254,
+      "unobservable_benchmark_weight": 0.0,
+      "month": "2026-06",
+      "abs_bridge": 0.0036181596992033056,
+      "members": 500,
+      "weight_sum": 1.0,
+      "added": 0,
+      "removed": 0,
+      "added_weight": 0.0,
+      "removed_weight": 0.0,
+      "weight_l1_change": 0.03237770968703109,
+      "membership_changed": false,
+      "snapshot_date": "2026-05-29 00:00:00",
+      "days_since_snapshot": 19.0,
+      "is_snapshot_day": false
+    },
+    {
+      "trade_date": "2021-06-16 00:00:00",
+      "exposure_date": "2021-06-15 00:00:00",
+      "benchmark_bridge": -0.0035348224645306812,
+      "benchmark_return": -0.014568346251345954,
+      "unobservable_benchmark_weight": 0.0,
+      "month": "2021-06",
+      "abs_bridge": 0.0035348224645306812,
+      "members": 500,
+      "weight_sum": 0.9999999999999999,
+      "added": 0,
+      "removed": 0,
+      "added_weight": 0.0,
+      "removed_weight": 0.0,
+      "weight_l1_change": 0.020151357002663003,
+      "membership_changed": false,
+      "snapshot_date": "2021-05-31 00:00:00",
+      "days_since_snapshot": 10.0,
+      "is_snapshot_day": false
+    },
+    {
+      "trade_date": "2026-06-30 00:00:00",
+      "exposure_date": "2026-06-29 00:00:00",
+      "benchmark_bridge": -0.002962283806112527,
+      "benchmark_return": 0.023953033918851396,
+      "unobservable_benchmark_weight": 0.0,
+      "month": "2026-06",
+      "abs_bridge": 0.002962283806112527,
+      "members": 500,
+      "weight_sum": 0.9999999999999999,
+      "added": 0,
+      "removed": 0,
+      "added_weight": 0.0,
+      "removed_weight": 0.0,
+      "weight_l1_change": 0.0367151762090119,
+      "membership_changed": false,
+      "snapshot_date": "2026-05-29 00:00:00",
+      "days_since_snapshot": 20.0,
+      "is_snapshot_day": false
+    }
+  ],
+  "securities": {
+    "2025-02-24": {
+      "exposure_date": "2025-02-21",
+      "basket_return": 0.01059713569832004,
+      "observable_weight": 1.0,
+      "unobservable_weight": 0.0,
+      "unobservable_names": [],
+      "saved_basket_return": 0.010597134302786748,
+      "reproduction_error": 1.3955332913567764e-09,
+      "reproduced": false
+    },
+    "2026-06-23": {
+      "error": "no exposures at 2026-06-22"
+    },
+    "2026-06-29": {
+      "exposure_date": "2026-06-26",
+      "basket_return": 0.01001495113603382,
+      "observable_weight": 1.0,
+      "unobservable_weight": 0.0,
+      "unobservable_names": [],
+      "saved_basket_return": 0.010014947553949948,
+      "reproduction_error": 3.582083872577524e-09,
+      "reproduced": false
+    },
+    "2021-06-16": {
+      "error": "no exposures at 2021-06-15"
+    },
+    "2026-06-30": {
+      "error": "no exposures at 2026-06-29"
+    }
+  }
+}
