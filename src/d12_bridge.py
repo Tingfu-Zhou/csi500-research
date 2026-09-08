@@ -157,7 +157,9 @@ def summarise_bridge(frame, rebalance_months=("06", "12")):
         "mean_absolute_bridge_outside": float(frame.loc[~in_rebalance, "abs_bridge"].mean())
         if (~in_rebalance).any() else np.nan}
     if "membership_changed" in frame.columns:
-        changed = frame["membership_changed"].fillna(False).astype(bool)
+        # The column is object dtype after the left merge (NaN where a day has no weight
+        # row). `.eq(True)` maps NaN to False without pandas' deprecated downcast.
+        changed = frame["membership_changed"].eq(True)
         summary["membership_change_days"] = {
             "days": int(changed.sum()),
             "share_of_days": float(changed.mean()),
