@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/home/tingfu/projects/csi500-research/scripts/d12_day3.py", line 291, in main
+    manifest = run(ROOT,args,output)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/projects/csi500-research/scripts/d12_day3.py", line 233, in run
+    replay = full_replay(market,saved,flags,calendar,config,output)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/projects/csi500-research/src/d12_day3_io.py", line 116, in full_replay
+    result = simulate_causal(market, saved['predictions'], exposures, flags, calendar, config, industries, styles, progress=progress)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/projects/csi500-research/src/d11_core.py", line 353, in simulate_causal
+    target, audit = optimize_at_signal(mu,wb,w0,cross,allowed,industries,styles,
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/projects/csi500-research/src/d11_core.py", line 129, in optimize_at_signal
+    factors = exposures.reindex(idx)[list(industries) + list(styles)].to_numpy(float)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/miniconda3/envs/qlib/lib/python3.11/site-packages/pandas/core/frame.py", line 2002, in to_numpy
+    result = self._mgr.as_array(dtype=dtype, copy=copy, na_value=na_value)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/miniconda3/envs/qlib/lib/python3.11/site-packages/pandas/core/internals/managers.py", line 1713, in as_array
+    arr = self._interleave(dtype=dtype, na_value=na_value)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tingfu/miniconda3/envs/qlib/lib/python3.11/site-packages/pandas/core/internals/managers.py", line 1772, in _interleave
+    result[rl.indexer] = arr
+    ~~~~~~^^^^^^^^^^^^
+ValueError: could not convert string to float: '汽车'

@@ -1,0 +1,78 @@
+{
+  "status": "completed",
+  "inputs_unchanged": true,
+  "formal_r1_ready": false,
+  "source_identity": {
+    "d11_v1": {
+      "manifest_sha256": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+      "outputs_verified": 832
+    },
+    "d11_diagnostic_v1": {
+      "manifest_sha256": "597dbe887ea240ae3fda277793cafc7410424bc371365dc35352d0a7e7f7d577",
+      "outputs_verified": 37
+    }
+  },
+  "r0_replay": {
+    "passed": true,
+    "full_period": true,
+    "days": 1859,
+    "decisions": 392,
+    "maximum_errors": {
+      "daily": 0.0,
+      "returns": 0.0,
+      "targets": 0.0,
+      "orders": 0.0,
+      "trades": 0.0
+    },
+    "tolerances_source": "scripts/d11_diagnose.py::replay_stress/check_parity",
+    "rtol": 2e-09,
+    "atol": {
+      "daily": 0.0001,
+      "returns": 1e-09,
+      "targets": 1e-09,
+      "orders": 1e-05,
+      "trades": 1e-05
+    },
+    "r1_zero_coefficient_gate_satisfied": false,
+    "p0_quality_certified": false
+  },
+  "timings": {
+    "p0_price_seconds": 45.04450707099977,
+    "account_reconstruction_seconds": 111.6576321790003,
+    "p1_seconds": 3.602175709999756,
+    "r0_replay_seconds": 60.528488301999914
+  },
+  "run_id": "day3_v2",
+  "recorded_at_utc": "2026-09-09T07:09:08Z",
+  "elapsed_seconds": 277.96612563200006,
+  "output_sha256": {
+    "actual_daily_holdings.parquet": "0705a0f4f57145cf4afaffe71dd1eb908dce53f0a59eb409f2af7209864693b3",
+    "alias_price_focus.tsv": "78ac19c3b1df546b310b7b707459907c7d8809a64d73f4b505b7854047786518",
+    "alias_price_history.parquet": "30199d0f7db720ad6ae5442d3f1d41c48f113a969011551b97e013fd2b367d75",
+    "baseline_parity.json": "7d4f9da2d7d937098fbe2fe9a23a3120d00be007bd86e043babe4fb0cf80c970",
+    "day3_report.md": "de3484d72ae4bdeda040fa615de8fb3c3f1c7bb3efff7f658436279311824153",
+    "identifier_rules.json": "86029add8476049dc7d94c44434551adca18feb250686243c1d197e1f364c2e6",
+    "independent_reference_inventory.json": "a39b6274b33486401d8483af06c9c986c5dd0f8f65729e5159b143c911378ce2",
+    "inputs_after.json": "404553a2428fd6288f24adbb60f04dfa798c4065a7d3a10ad4bb723710c6998c",
+    "inputs_before.json": "404553a2428fd6288f24adbb60f04dfa798c4065a7d3a10ad4bb723710c6998c",
+    "membership_proxy_windows.tsv": "4c816f7a7e4976b8736dcc41e559141527a7bf217cfcd3d2997d9965203435fe",
+    "membership_timeline.tsv": "4e80b2af32ce48999c954c0a4ab4b9fc2b2b1c07bd9bb78caf936f480b2d96e2",
+    "p0_stage_conclusion.json": "c57539627f5dc1380e1783352416aafde6885943b51d376cf03e17d8f68dd49b",
+    "p1_decisions.tsv": "6a5f12731274dde662749d8eee8c3ea76f76176a95f835e9dcf41ab4f95f89c9",
+    "p1_participation_by_decision_side.tsv": "05d27071c2baf47c1c8f76857db06da27e99b3ff47eca3019102d7598bae5ac4",
+    "p1_summary.json": "d84b5ac955baad72c2ccba2a9eee00b04df2ac57e2227b34e7e9c49ebb2a0b99",
+    "p1_trade_detail.parquet": "a66971d0540d1b21ff57df4606fee8b874fec4a70d653c2ea6f43d0dd7819de1",
+    "p1_trade_groups.tsv": "3de49f21b58281967f7149578cb8e8a35d94ee2ba24e3775d19442a19b88f3a2",
+    "preflight.json": "36419e4e5b3db3c17f8ca01aa8cbb79d93c86bfbee6be05474ebf9431e80f138",
+    "price_candidates.parquet": "4a35ccbda1749cc46595ed70ffff15b3cb7c575a4fb01aa3449b0d857cafb7ad",
+    "price_candidates_top.tsv": "0ada7d5318bceb40d3ba2964a04b38a552c360f510077ff536ba18b542d90eb1",
+    "price_coverage.tsv": "4753f00c8185c3d822e18b64739292ecea80bb16055a2d2dcd89156a4ce3e4dd",
+    "price_propagation.parquet": "b10921e0e2910e08447df17580dbb657deb492a8250de97b7300241c005e5b8b",
+    "price_propagation_focus.tsv": "ab6795db9444daf224c6b285b318149c8c927dc202c41b72bcaf517c21dcbef5",
+    "provider_membership_intervals.tsv": "180bfedbfefdeac6ecbe5de8d714b4746cf36db2c7639c21b6546a883ae69c5c",
+    "r0_replay_daily.parquet": "21496e9e9bb571666f63c1857fbbf42c757ff3f1c6d460a1321bda9c5a1c9009",
+    "r1_registration_review.json": "70e54b106eddbd50b40e04583e272409eae6df7f64213c81be465ec1ca27918a",
+    "reconstructed_accounting.parquet": "23631235eec8fd1469c8445f7053cdee6de360ad2c848d1075a60ae41ec15196",
+    "source_identity.json": "6c2683fe5cdde5135c235417bb687a0e0a8a4900445dcc59e91d7faa12daf7ca"
+  }
+}

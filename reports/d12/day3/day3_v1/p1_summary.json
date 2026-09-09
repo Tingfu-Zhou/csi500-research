@@ -1,0 +1,13 @@
+{
+  "order_rows": 183240,
+  "filled_rows": 181880,
+  "regular_decisions": 391,
+  "regular_decisions_at_turnover_cap": 391,
+  "cash_scaled_buy_rows": 55008,
+  "ex_ante_above_5pct_rows": 0,
+  "actual_capacity_limited_rows": 1,
+  "amount_estimate_missing_rows": 1232,
+  "costs_reconciled": true,
+  "expected_contribution_note": "signed requested trade weight times expected excess; no-cost, no-fill assumption; not realized profit",
+  "capacity_shortfall_note": "diagnostic eligible-order cap shortfall before buy cash scaling; not a new order constraint"
+}

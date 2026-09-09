@@ -1,0 +1,28 @@
+{
+  "repository": {
+    "branch": "d12",
+    "head": "b0f2ba22c58e726f020c7bbcafbbe502eb16ad74",
+    "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "protected_tracked_files": 140
+  },
+  "saved_runs": {
+    "d11_v1": {
+      "manifest_sha256": "6ddae6eb7df1343926db9fb776dfa735bbdc7dd8a0a6bd4817229bfc6b0be465",
+      "outputs_verified": 832
+    },
+    "d11_diagnostic_v1": {
+      "manifest_sha256": "597dbe887ea240ae3fda277793cafc7410424bc371365dc35352d0a7e7f7d577",
+      "outputs_verified": 37
+    }
+  },
+  "input_parity": {
+    "passed": true,
+    "checked_source_entries": 62044,
+    "new_d12_files_allowed": true
+  },
+  "source_run": "d11_v1",
+  "repaired_r0": false,
+  "historical_decision": "No-Go"
+}
