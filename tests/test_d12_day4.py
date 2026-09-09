@@ -15,12 +15,20 @@ from scripts.d12_day4 import validate_frozen_spec, zero_gate
 from src.d3_core import CostModel
 from src.d7_core import OptimizationLimits
 from src.d12_core import ImpactEstimator, expected_impact_fraction
+from src.d12_day4_io import Day4Output
+from src.d12_repo import D12Error
 from src.d12_r1 import (annotate_orders, optimize_at_signal_r1,
                         participation_summary, simulate_r1)
 
 
 CONFIG = yaml.safe_load((ROOT / "config/config.yaml").read_text())
 EXPERIMENTS = yaml.safe_load((ROOT / "config/d12_experiments.yaml").read_text())
+
+
+def test_existing_run_id_is_rejected_with_an_actionable_message(tmp_path):
+    Day4Output(tmp_path, "zero_v1")
+    with pytest.raises(D12Error, match="already exists and is immutable.*new --run-id"):
+        Day4Output(tmp_path, "zero_v1")
 
 
 def optimizer_fixture(names=40, seed=23):

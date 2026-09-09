@@ -31,7 +31,13 @@ class Day4Output:
         self.root = root
         self.run_id = run_id
         self.path = parent / run_id
-        self.path.mkdir(exist_ok=False)
+        try:
+            self.path.mkdir(exist_ok=False)
+        except FileExistsError as error:
+            raise D12Error(
+                f"Day-4 run {run_id!r} already exists and is immutable; "
+                "do not delete or reuse it. Use a new --run-id only when a rerun is required."
+            ) from error
 
     def target(self, name):
         if not FILE_NAME.fullmatch(name) or name in {".", ".."}:
