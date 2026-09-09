@@ -1,0 +1,68 @@
+{
+  "run_id": "zero_v1",
+  "stage": "gate",
+  "status": "completed",
+  "inputs_unchanged": true,
+  "mode": "zero_gate",
+  "decision_k": 0.0,
+  "zero_gate": {
+    "passed": true,
+    "full_period": true,
+    "days": 1859,
+    "decisions": 392,
+    "source_baseline": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+    "not_compared_to": "reports/d11/d11_v1",
+    "decision_k": 0.0,
+    "structural_bypass": "src.d12_r1.simulate_r1 -> src.d11_core.simulate_causal",
+    "maximum_errors": {
+      "daily": 0.0,
+      "returns": 0.0,
+      "targets": 0.0,
+      "orders": 0.0,
+      "trades": 0.0
+    },
+    "rtol": 2e-09,
+    "atol": {
+      "daily": 0.0001,
+      "returns": 1e-09,
+      "targets": 1e-09,
+      "orders": 1e-05,
+      "trades": 1e-05
+    },
+    "r1_zero_coefficient_gate_satisfied": true,
+    "p0_membership_quality_certified": false
+  },
+  "historical_decision": "No-Go",
+  "new_oos_validation": false,
+  "repository": {
+    "branch": "d12",
+    "head": "b7dcb4254ce76a21028eca09c5fd6bb55d2add71",
+    "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "protected_tracked_files": 140
+  },
+  "repaired_r0": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+  "unresolved": [
+    "P0-12 membership timing",
+    "P0-24 alias missing prices",
+    "P0-27 excluded factor breaks"
+  ],
+  "recorded_at_utc": "2026-09-09T14:27:43Z",
+  "elapsed_seconds": 141.83612948600057,
+  "output_sha256": {
+    "audits.parquet": "76d585975755ba4a1ec7b202260ffd1b51b85e7983ef44bcf769e8724d7da2b9",
+    "daily.parquet": "7bf184b964b2949a62f63f15ee2ba9c8ba509aa8abf7468919183a8268619e31",
+    "frozen_spec_identity.json": "23ba04a53631cbe837c5e35b0b1aea6e60e830363e62963216bacad635355a23",
+    "inputs_after.parquet": "2da108efb3c6781747b2d6513c63bd1e92967d29ff73c3a99982ae9ae4972ec6",
+    "inputs_after_summary.json": "17d2df3c2f2b7298cde4dcb6db5379d03b34848b57e709c72d4beb662436949b",
+    "inputs_before.parquet": "2da108efb3c6781747b2d6513c63bd1e92967d29ff73c3a99982ae9ae4972ec6",
+    "inputs_before_summary.json": "9382682b8bd5429d2880267e2799342d825af63ad585aff93709df56a22f48a4",
+    "orders.parquet": "c062e36af8cae19fc9045be8fa6cde6ef8797f81694d1e7821b9ad06ccc5d49c",
+    "preflight.json": "b064e54df63f617dd76c05536d241fbda816c6a0c8725e2d3c779ee801c61382",
+    "repaired_r0_identity.json": "77fa8f60c0f39e0acaf105f1b577de1a1e8dad0d5d45e8e4e91fd9bfbea08df2",
+    "targets.parquet": "5ebdd1311225070543d99b2292f2c4a7328d09dca33b87f1e97d4894c6e4b66d",
+    "trades.parquet": "e8e893e8f5d30bd238cae3a787456c64254d604b10938609bf1217ba68680b1e",
+    "zero_gate.json": "afd5ae01ea63cda8b2fecf766cfa048b0496d31002e803df2526dffee08a73e9"
+  }
+}
