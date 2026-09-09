@@ -277,5 +277,28 @@ def test_the_separation_gate_is_wired_into_the_classify_stage():
     import inspect
     import scripts.d12_repair_r0 as entry
     source = inspect.getsource(entry.stage_classify)
-    assert 'separation_gate(profile, args.minimum_separation)' in source
+    assert 'separation_gate(profile, args.minimum_separation' in source
     assert "output.json('noise_profile.json', profile)" in source
+
+
+def test_the_separation_gate_can_be_judged_on_the_repaired_scope_only():
+    """Restricting the repair to a root-caused security judges the gate on that security."""
+    from scripts.d12_repair_r0 import separation_gate
+    profile = {'one_session_jump_quantiles': {'0.9999': .0071},
+               'confirmed_break_jump_minimum': .0050}   # what repair_v2 measured over the whole universe
+    with pytest.raises(D12Error, match='cutting through noise'):
+        separation_gate(profile, 3.)
+    # SZ302132's own break, which is what the plan is scoped to.
+    assert separation_gate(profile, 3., smallest=4.976) == pytest.approx(4.976 / .0071)
+
+
+def test_the_classify_stage_scopes_the_plan_before_planning_it():
+    import inspect
+    import scripts.d12_repair_r0 as entry
+    source = inspect.getsource(entry.stage_classify)
+    # The gate and the scope must both be settled before a plan is built, or a failure
+    # reports on rows the run was never going to rewrite.
+    assert source.index('separation_gate(') < source.index('build_repair_plan(')
+    assert source.index('noise_profile(classified)') < source.index('separation_gate(')
+    assert 'excluded_findings' in source and 'plan_scope.json' in source
+    assert 'build_repair_plan(repairable' in source

@@ -180,7 +180,7 @@ def scan_for_classification(access, config, weights, calendar, output, chunk_siz
     return pd.concat(retained, ignore_index=True), counts
 
 
-def separation_gate(profile, minimum):
+def separation_gate(profile, minimum, *, smallest=None):
     """Refuse a plan whose smallest confirmed break sits inside the measured wobble.
 
     `repair_v1` exited 0 with 30,030 segments over 501 securities because a fixed
@@ -193,7 +193,7 @@ def separation_gate(profile, minimum):
     no confirmed breaks, or no measured floor.
     """
     floor = (profile.get('one_session_jump_quantiles') or {}).get('0.9999')
-    smallest = profile.get('confirmed_break_jump_minimum')
+    smallest = smallest if smallest is not None else profile.get('confirmed_break_jump_minimum')
     if not floor or not smallest:
         return None
     separation = smallest / floor
@@ -241,9 +241,35 @@ def stage_classify(args, config, output):
     output.json('noise_profile.json', profile)
     say(f'D12 measured wobble: {profile["one_session_jump_quantiles"]}; '
         f'smallest confirmed break {profile["confirmed_break_jump_minimum"]}')
-    plan = build_repair_plan(classified, anchor=args.anchor)
-    proof = verify_repair(classified, plan)
-    preview = repair_preview(classified, plan)
+
+    # Scope the *repair* before planning it. The classification covers the whole
+    # universe and stays visible in full; what gets rewritten is limited to securities
+    # with a recorded root cause, because that is what the week's plan asks for --
+    # repair what is proven, list what is not.
+    scope = sorted({name.upper() for name in (args.restrict_to or [])})
+    repairable = classified if not scope else classified.loc[classified.instrument.isin(scope)]
+    excluded = contradicted.loc[~contradicted.instrument.isin(scope)] if scope else contradicted.iloc[:0]
+    if scope:
+        missing = sorted(set(scope) - set(contradicted.instrument))
+        if missing:
+            raise D12Error(f'--restrict-to names securities with no confirmed break: {missing}')
+        output.table('excluded_findings', excluded.sort_values(['instrument', 'trade_date']))
+    output.json('plan_scope.json', {
+        'restricted_to': scope,
+        'confirmed_breaks_total': int(len(contradicted)),
+        'confirmed_break_instruments_total': int(contradicted.instrument.nunique()),
+        'breaks_in_scope': int(len(contradicted) - len(excluded)),
+        'breaks_excluded_and_left_open': int(len(excluded)),
+        'instruments_excluded_and_left_open': int(excluded.instrument.nunique()) if len(excluded) else 0,
+        'note': 'Excluded findings are reported, not repaired. They stay open until each one has an '
+                'independently checked root cause, the same standard SZ302132 had to meet.'})
+    in_scope_breaks = repairable.loc[repairable.verdict.eq('factor_contradicted'), 'factor_ratio_error']
+    separation = separation_gate(profile, args.minimum_separation,
+                                 smallest=float(in_scope_breaks.min()) if len(in_scope_breaks) else None)
+
+    plan = build_repair_plan(repairable, anchor=args.anchor)
+    proof = verify_repair(repairable, plan)
+    preview = repair_preview(repairable, plan)
     design_end = pd.Timestamp(config['windows']['design_end'])
     design_breaks = plan.loc[plan.breakpoint_date.notna() & plan.breakpoint_date.le(design_end)]
     output.parquet('repair_plan.parquet', plan)
@@ -252,22 +278,23 @@ def stage_classify(args, config, output):
         preview.adjusted_return_change.abs().gt(1e-9) | preview.verdict.eq('factor_contradicted')]
         .sort_values(['instrument', 'trade_date']))
     output.json('repair_plan.json', {
-        'anchor_rule': args.anchor, 'segments': plan.to_dict('records'),
+        'anchor_rule': args.anchor, 'restricted_to': scope, 'segments': plan.to_dict('records'),
         'verification': proof, 'classification': summary, 'noise_profile': profile,
         'separation_over_measured_wobble': separation,
+        'breaks_excluded_and_left_open': int(len(excluded)),
         'membership_repair': 'not attempted; P0-12 stays blocked on official effective-date sets',
         'raw_price_defects_excluded': int(classified.raw_close_contradicted.sum()),
         'design_window_breakpoints': design_breaks.to_dict('records'),
         'design_window_note': 'A breakpoint at or before design_end would move frozen design weights; '
                               'D9 re-asserts those at rtol=1e-12, so the inputs stage refuses to proceed '
                               'and the design caches would have to be rebuilt as a separate recorded decision.'})
-    say(f'D12 repair plan: {len(plan)} segment(s) over {plan.instrument.nunique() if len(plan) else 0} instrument(s)')
-    separation = separation_gate(profile, args.minimum_separation)
+    say(f'D12 repair plan: {len(plan)} segment(s) over {plan.instrument.nunique() if len(plan) else 0} instrument(s); {len(excluded)} confirmed break(s) reported but left open')
     if len(design_breaks):
         say(f'D12 WARNING: {len(design_breaks)} breakpoint(s) fall inside the design window; --stage inputs will stop')
     return {'status': 'completed', 'repository': repository, 'classification': summary,
             'plan_segments': int(len(plan)), 'plan_instruments': int(plan.instrument.nunique()) if len(plan) else 0,
             'design_window_breakpoints': int(len(design_breaks)),
+            'restricted_to': scope, 'breaks_excluded_and_left_open': int(len(excluded)),
             'noise_profile': profile, 'separation_over_measured_wobble': separation,
             'verification': proof, 'anchor_rule': args.anchor}
 
@@ -490,6 +517,9 @@ def main():
                              '"earliest" leaves the frozen design window bit-identical')
     parser.add_argument('--minimum-coverage', type=float, default=.90,
                         help='required independent factor-ratio coverage before a plan may be frozen')
+    parser.add_argument('--restrict-to', action='append', metavar='INSTRUMENT',
+                        help='limit the repair to securities with a recorded root cause (repeatable). '
+                             'The classification still covers everything; the rest is reported, not rewritten.')
     parser.add_argument('--minimum-separation', type=float, default=3.,
                         help='how far the smallest confirmed break must clear the wobble this run '
                              'measured; guards against thresholds that cut through noise')
