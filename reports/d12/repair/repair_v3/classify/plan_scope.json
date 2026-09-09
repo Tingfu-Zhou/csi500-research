@@ -1,0 +1,11 @@
+{
+  "restricted_to": [
+    "SZ302132"
+  ],
+  "confirmed_breaks_total": 422,
+  "confirmed_break_instruments_total": 187,
+  "breaks_in_scope": 1,
+  "breaks_excluded_and_left_open": 421,
+  "instruments_excluded_and_left_open": 186,
+  "note": "Excluded findings are reported, not repaired. They stay open until each one has an independently checked root cause, the same standard SZ302132 had to meet."
+}
