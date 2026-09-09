@@ -1,0 +1,60 @@
+{
+  "identifier_alias_removals": [
+    {
+      "effective_start": "2023-12-29",
+      "effective_end": "2025-06-29",
+      "alias_instrument": "SZ300114",
+      "canonical_instrument": "SZ302132",
+      "reason": "Qlib 同时保留变更前后代码；Tushare 已把同一上市主体历史权重统一映射为 302132",
+      "evidence": "https://disc.static.szse.cn/disc/disk03/finalpage/2025-02-15/cedb693a-f5ee-4463-9682-ea33d406b569.PDF"
+    }
+  ],
+  "membership_replacements": [
+    {
+      "effective_start": "2019-01-18",
+      "effective_end": "2019-06-27",
+      "remove_instrument": "SH600270",
+      "add_instrument": "SH601598",
+      "anchor_snapshot_date": "2019-01-31",
+      "reason": "中国外运换股吸收合并外运发展，自中国外运 A 股上市日起临时调样",
+      "evidence": "https://www.sse.com.cn/market/sseindex/diclosure/c/c_20181217_4694178.shtml"
+    },
+    {
+      "effective_start": "2020-08-18",
+      "effective_end": "2020-12-30",
+      "remove_instrument": "SZ002470",
+      "add_instrument": "SH603708",
+      "anchor_snapshot_date": "2020-08-31",
+      "reason": "中证500临时调出 *ST金正并调入家家悦",
+      "evidence": "https://pdf.dfcfw.com/pdf/H2_AN202008251401219756_1.pdf"
+    },
+    {
+      "effective_start": "2021-09-13",
+      "effective_end": "2021-12-30",
+      "remove_instrument": "SH600260",
+      "add_instrument": "SH600297",
+      "anchor_snapshot_date": "2021-09-30",
+      "reason": "凯乐科技退出中证500且广汇汽车同日进入",
+      "evidence": "https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600297.phtml"
+    },
+    {
+      "effective_start": "2021-09-28",
+      "effective_end": "2021-12-30",
+      "remove_instrument": "SH600068",
+      "add_instrument": "SH601868",
+      "anchor_snapshot_date": "2021-09-30",
+      "reason": "葛洲坝退出中证500且中国能建同日进入",
+      "evidence": "https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/601868.phtml"
+    },
+    {
+      "effective_start": "2026-01-12",
+      "effective_end": "2026-06-29",
+      "remove_instrument": "SH600079",
+      "add_instrument": "SH688037",
+      "anchor_snapshot_date": "2026-01-30",
+      "reason": "2026年1月9日收市后中证500调出 ST人福并调入芯源微",
+      "evidence": "https://hk.investing.com/news/stock-market-news/article-1256533"
+    }
+  ],
+  "note": "Recorded project identifier rules do not prove price continuity; no series was spliced."
+}

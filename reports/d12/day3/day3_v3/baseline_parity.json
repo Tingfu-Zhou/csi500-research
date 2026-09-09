@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "full_period": true,
+  "days": 1859,
+  "decisions": 392,
+  "maximum_errors": {
+    "daily": 0.0,
+    "returns": 0.0,
+    "targets": 0.0,
+    "orders": 0.0,
+    "trades": 0.0
+  },
+  "tolerances_source": "scripts/d11_diagnose.py::replay_stress/check_parity",
+  "rtol": 2e-09,
+  "atol": {
+    "daily": 0.0001,
+    "returns": 1e-09,
+    "targets": 1e-09,
+    "orders": 1e-05,
+    "trades": 1e-05
+  },
+  "r1_zero_coefficient_gate_satisfied": false,
+  "p0_quality_certified": false
+}

@@ -1,0 +1,25 @@
+{
+  "status": "completed",
+  "diagnostic_only": true,
+  "qlib_data_changed": false,
+  "r0_repaired": false,
+  "run_id": "price_ref_v1",
+  "recorded_at_utc": "2026-09-09T07:39:06+00:00",
+  "codes": [
+    "300114.SZ",
+    "302132.SZ"
+  ],
+  "start_date": "20250203",
+  "end_date": "20250307",
+  "rows": {
+    "daily": 31,
+    "adj_factor": 31,
+    "daily_basic": 31
+  },
+  "raw_sha256": {
+    "data/raw/tushare/d12_evidence/price_ref_v1/daily_20250224.parquet": "0818df7aafd40047025b5b02993513defbfa4eb66f71be45e9bd32a7ff638d4f",
+    "data/raw/tushare/d12_evidence/price_ref_v1/adj_factor_20250224.parquet": "8b4031d2e1514432eba67ed7ed30010a2668dabb5d0a1728ed4681cf4a414386",
+    "data/raw/tushare/d12_evidence/price_ref_v1/daily_basic_20250224.parquet": "cd0546c5d1a7c220d8548694eee9854bbd972890f114004dd43c1f2e0849b132"
+  },
+  "next_command": "python -u scripts/d12_day3.py --run-id day3_v3 --replay"
+}

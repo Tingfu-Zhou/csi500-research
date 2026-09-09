@@ -1,0 +1,25 @@
+{
+  "formal_r1_ready": false,
+  "repaired_r0_established": false,
+  "p0_price_status": "candidates_and_coverage_pending_review",
+  "p0_membership_status": "blocked_no_official_full_set_evidence",
+  "why_blocked": [
+    "P0-12/P0-15/P0-17 are not automatically cleared by screens or parity",
+    "independent price/factor and official membership evidence require classification",
+    "A-type corrections require new inputs, dependency invalidation and a separate repaired R0",
+    "day4 R1 implementation needs its own full zero-coefficient replay"
+  ],
+  "observed_price_candidates": 6936,
+  "in_universe_candidates": 2718,
+  "direct_holding_exposure_rows": 636,
+  "reference_close_coverage": 0.006153946086391686,
+  "reference_factor_ratio_coverage": 1.4290354011042547e-05,
+  "timings": {
+    "p0_price_seconds": 44.38179919600043,
+    "account_reconstruction_seconds": 110.30985333099943,
+    "p1_seconds": 3.698577457000283,
+    "r0_replay_seconds": 60.60894214699965
+  },
+  "historical_decision": "No-Go",
+  "new_oos_validation": false
+}

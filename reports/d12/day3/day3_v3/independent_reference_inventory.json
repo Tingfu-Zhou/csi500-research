@@ -1,0 +1,216 @@
+{
+  "files": [
+    {
+      "file": "data/raw/tushare/d12_evidence/price_ref_v1/adj_factor_20250224.parquet",
+      "sha256": "8b4031d2e1514432eba67ed7ed30010a2668dabb5d0a1728ed4681cf4a414386",
+      "rows_in_scope": 31
+    },
+    {
+      "file": "data/raw/tushare/d12_evidence/price_ref_v1/daily_20250224.parquet",
+      "sha256": "0818df7aafd40047025b5b02993513defbfa4eb66f71be45e9bd32a7ff638d4f",
+      "rows_in_scope": 31
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20140609.parquet",
+      "sha256": "1aee8119929f95cefb5bdac79f5370b4010338fe5a48cf6cb590d55ff54844c3",
+      "rows_in_scope": 2527
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20140613.parquet",
+      "sha256": "90700b56d714c2e3b1fabff14cf3502a3006711ab932c87033f5d74cf9fdcc98",
+      "rows_in_scope": 2527
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20140623.parquet",
+      "sha256": "c355e42172ec6abae2f32d2f06caf2c7e7666a1ddc6516fd6fa56505cb52d5f0",
+      "rows_in_scope": 2527
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20140821.parquet",
+      "sha256": "bd920c118c800c7edbdb6d523c8dc6ced7b93749c1337d0c1e75e7fd767f5211",
+      "rows_in_scope": 2548
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20141230.parquet",
+      "sha256": "b7f458a22594c5eedf9dee28d62c7e7be2c89cc2f904e3bb99eecda377b18837",
+      "rows_in_scope": 2605
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20160224.parquet",
+      "sha256": "f2fdff780295f24db017e48571581061b8eae22ddf9791f9eac417b3eb05af58",
+      "rows_in_scope": 2901
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20160304.parquet",
+      "sha256": "b1a8977b2de7371ccfe872cf31ffdff04974c05c7288c6c68a0f9fb039a27280",
+      "rows_in_scope": 2903
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20160405.parquet",
+      "sha256": "ee66177a062dcaa2a03a46e38fa57e01ab89ab8bc2b4e829b7c3ab1acf79b1d0",
+      "rows_in_scope": 2923
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20160722.parquet",
+      "sha256": "10c04b1e65037e37ad3c078c911d8619e7bd64884e89fd9857a4b366a8f8b573",
+      "rows_in_scope": 2985
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20160810.parquet",
+      "sha256": "53fe85f5d98c569021787799581e1c80e6e3875ac29a996af6a9df1095d165e7",
+      "rows_in_scope": 3000
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20170327.parquet",
+      "sha256": "473ae1e321fefc6ebf5ad5b1e519244f0e28831d7b7e389e9eddf6847696dbae",
+      "rows_in_scope": 3294
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20170619.parquet",
+      "sha256": "5b76785584d7a5fd4cf7e5983ba9bd15d3db0e1f2cc782892c29dbd624f18e48",
+      "rows_in_scope": 3415
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20170728.parquet",
+      "sha256": "366b7bb30e673faf2fe5a0d9752553c2ed5ce818d3e0814450d950778971d07a",
+      "rows_in_scope": 3457
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20170828.parquet",
+      "sha256": "aa05a878d5e7122820a5ec987d9756082540483250e0eefeeaf48f2030a0c485",
+      "rows_in_scope": 3495
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20171018.parquet",
+      "sha256": "6e8007d5d984f8929e6f437b76d56168c1abff00f6bb146f7eabe4108ff3f8b0",
+      "rows_in_scope": 3547
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20171026.parquet",
+      "sha256": "f82b23ae7357c2e4ea302ba977c7933f796c54f350b0863f1fb16428cff8dcdd",
+      "rows_in_scope": 3560
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20171130.parquet",
+      "sha256": "6f3d8122572cdbc4177f6e853a87c9a81bedf06af9eb0e78a171d0e8d5fc695f",
+      "rows_in_scope": 3604
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20180314.parquet",
+      "sha256": "86afba8421bca72370c4efb3cacefb6489b98f6348c3294e8d71e8928699b750",
+      "rows_in_scope": 3670
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20180330.parquet",
+      "sha256": "d677dd03faee8ac0ceec69957f69043b8256397d1ad786cea574c01ca4d49d6c",
+      "rows_in_scope": 3679
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/adj_factor_20181107.parquet",
+      "sha256": "31a3d83207e9d2d9df0f7fbe7595fcf74a7e85db8bfd852881084f1721971e0f",
+      "rows_in_scope": 3735
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20140609.parquet",
+      "sha256": "acc0cbdab0e0a3164671e2219ed738a54c058e8cded3584900b68ae965803c4e",
+      "rows_in_scope": 2305
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20140613.parquet",
+      "sha256": "ef2fa7314a0e34571656791e7ffa2cc20fa949be9e92946388b65332c6a38e09",
+      "rows_in_scope": 2299
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20140623.parquet",
+      "sha256": "584c1b3f5e7656354b9971d620de1254142617238929426fe9730731b5d5f37c",
+      "rows_in_scope": 2308
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20140821.parquet",
+      "sha256": "db55a79174ae4f89901c5f87b5766459a54b3d24c34d69691cefe5a39df86c67",
+      "rows_in_scope": 2322
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20141230.parquet",
+      "sha256": "cac2f408f7f85278b1f8a9558ed3e40a9a6695cdf712833ee9821690f261562b",
+      "rows_in_scope": 2344
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20160224.parquet",
+      "sha256": "e325fd7e71a1156844e56c26bbabe491deb5008928d347d3000f26dd2fabfc11",
+      "rows_in_scope": 2586
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20160304.parquet",
+      "sha256": "d54a951c895bc69546541f1a69e7fe22a3c6ffa8be3419f1ae1ff50897abcd0b",
+      "rows_in_scope": 2591
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20160405.parquet",
+      "sha256": "77c22dfbdbae33ac0d05b9d16b6271af31194ed0e2c95faf67ca29c85f6bfd78",
+      "rows_in_scope": 2570
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20160722.parquet",
+      "sha256": "ca59793491b0a27f3a8c793e83054b8923536a5460b95b9e0bdddd58cb04fa09",
+      "rows_in_scope": 2669
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20160810.parquet",
+      "sha256": "605b4688b3e9fa204ef501002c1bc606fc71aac32d1bebcdcdd824d74eacf787",
+      "rows_in_scope": 2712
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20170327.parquet",
+      "sha256": "8aaf3b4b896da8007c677f6a2d1c4a99bf48848a4ab107a4658bfaad9cd30a38",
+      "rows_in_scope": 2997
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20170619.parquet",
+      "sha256": "f505a524e31367d02e417c83a55c4974b897c8f0e489a8386a278503f6f8bf6b",
+      "rows_in_scope": 3052
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20170728.parquet",
+      "sha256": "5c0ff0c0362b0d1bb6a9040d8ab89df0dcdddfcb97e469cf10164df03e6968bb",
+      "rows_in_scope": 3082
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20170828.parquet",
+      "sha256": "e4d96510c857f41d961f87f9a42ce46e22db7156bcd5f8de66ad1d2f73d9fff3",
+      "rows_in_scope": 3150
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20171018.parquet",
+      "sha256": "12028a36e3287d1951d5e7e821b3e892f399a4b46c938d14d778c11af3fc6fb5",
+      "rows_in_scope": 3229
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20171026.parquet",
+      "sha256": "c47db04d34205bcd442174ff9be2156ae84095a3dd79dc9e6f30ca7bc85358f8",
+      "rows_in_scope": 3230
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20171130.parquet",
+      "sha256": "354e3a2cebd760691aaf4c0454b66dd79733a89fa10f346e518043bd07ce1468",
+      "rows_in_scope": 3274
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20180314.parquet",
+      "sha256": "e51c8d798d6d015617b2a2d4152220ee8085e66315c26febc1cd17295b74de2d",
+      "rows_in_scope": 3256
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20180330.parquet",
+      "sha256": "ab588df15db5db7e76269f520c4bba37f6a0ec09a0a2b9c2b2e4371d081cc627",
+      "rows_in_scope": 3278
+    },
+    {
+      "file": "data/raw/tushare/qc_sample/daily_20181107.parquet",
+      "sha256": "829e91a3e515da0dae6382eb6ddb404f1369fcc6e3e7cbe9df5857e4368f33db",
+      "rows_in_scope": 3523
+    }
+  ],
+  "missing_limit_years": [],
+  "note": "Missing/zero limit rows do not prove unlimited trading; reference caches may be sampled only."
+}

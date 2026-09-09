@@ -1,0 +1,36 @@
+{
+  "status": "frozen_spec_retained_execution_blocked",
+  "frozen_spec_sha256": "51f1d14f8cc96bfa0010f69486ad427db99c7971a5867d24dc100ac1145bf5fa",
+  "registry_sha256": "90c388f74a61ea13598335b72804526fa6d00741eebaee886e4f72a8ec510ec7",
+  "p1_completed": true,
+  "r0_replay": {
+    "passed": true,
+    "full_period": true,
+    "days": 1859,
+    "decisions": 392,
+    "maximum_errors": {
+      "daily": 0.0,
+      "returns": 0.0,
+      "targets": 0.0,
+      "orders": 0.0,
+      "trades": 0.0
+    },
+    "tolerances_source": "scripts/d11_diagnose.py::replay_stress/check_parity",
+    "rtol": 2e-09,
+    "atol": {
+      "daily": 0.0001,
+      "returns": 1e-09,
+      "targets": 1e-09,
+      "orders": 1e-05,
+      "trades": 1e-05
+    },
+    "r1_zero_coefficient_gate_satisfied": false,
+    "p0_quality_certified": false
+  },
+  "decision_k": 0.5,
+  "execution_k_nominal": 0.5,
+  "execution_k_stress": 1.0,
+  "new_participation_constraint": false,
+  "formal_r1_ready": false,
+  "r1_zero_coefficient_replay_still_required": true
+}
