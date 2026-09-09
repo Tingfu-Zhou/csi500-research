@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "full_period": true,
+  "days": 1859,
+  "decisions": 392,
+  "source_baseline": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+  "not_compared_to": "reports/d11/d11_v1",
+  "decision_k": 0.0,
+  "structural_bypass": "src.d12_r1.simulate_r1 -> src.d11_core.simulate_causal",
+  "maximum_errors": {
+    "daily": 0.0,
+    "returns": 0.0,
+    "targets": 0.0,
+    "orders": 0.0,
+    "trades": 0.0
+  },
+  "rtol": 2e-09,
+  "atol": {
+    "daily": 0.0001,
+    "returns": 1e-09,
+    "targets": 1e-09,
+    "orders": 1e-05,
+    "trades": 1e-05
+  },
+  "r1_zero_coefficient_gate_satisfied": true,
+  "p0_membership_quality_certified": false
+}
