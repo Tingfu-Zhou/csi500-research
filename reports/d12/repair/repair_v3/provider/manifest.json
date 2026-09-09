@@ -1,0 +1,60 @@
+{
+  "status": "completed",
+  "corrected_provider": "/home/tingfu/projects/csi500-research/data/d12_repair/repair_v3/provider",
+  "source_provider": "/home/tingfu/.qlib/qlib_data/cn_data_community",
+  "provider": {
+    "source_provider": "/home/tingfu/.qlib/qlib_data/cn_data_community",
+    "corrected_provider": "/home/tingfu/projects/csi500-research/data/d12_repair/repair_v3/provider",
+    "mirror_mode": "link",
+    "files_mirrored": 61458,
+    "instruments_patched": 1,
+    "files_patched": 7,
+    "values_rescaled": 2604,
+    "maximum_float32_round_trip_error": 5.812991932252487e-08,
+    "fields_left_as_links": {
+      "adjclose": 1,
+      "amount": 1,
+      "change": 1
+    },
+    "calendar_sessions": 6462
+  },
+  "verification": {
+    "files_checked": 61458,
+    "identical_by_inode": 61451,
+    "identical_by_digest": 0,
+    "patched_files_reverified": 7,
+    "maximum_reverification_error": 5.812991932252487e-08
+  },
+  "classify_stage_sha256": {
+    "excluded_findings.tsv": "14a42e107a4c76930ffad70a536733207b8822c6c6302c75811385e8bfc70a9b",
+    "factor_classification_retained.parquet": "588ea3bd61d8ab184f168a149b35f2c3cbd871044b9c9dd1d16f01b0e087a599",
+    "factor_contradictions.tsv": "1357ae83dfd8f33cfee282c277e4dff27c8bad21439356362671bdcc4ed5c6a1",
+    "independent_reference_inventory.json": "93fd1310685ce98e5e2c7ceb56b5dfdf22edffd1a630ac4d9df5046c2469db43",
+    "noise_profile.json": "300907a61175bb1462329e55e44dcfb08127a01e3576c1f59190ee4f874fad0b",
+    "plan_scope.json": "18f5cb1e842d872a736e2cc98a4501a2194c6cef489e4e3d2951dcb14e2198ea",
+    "preflight.json": "e6580f84147590f5aed611b6ed875b29f9ee4b862aaeab50470ac5b1aa0329ad",
+    "repair_plan.json": "62947952b971cf9e62fdc97a0cb11b573366b2907743a7eec361ebbcb26703d0",
+    "repair_plan.parquet": "ead19af4b768e556ade53a2809c40421c788bb4a80dc95a4aeb0a74a6e4ba86d",
+    "repair_plan.tsv": "d5caacdbabd241cd1d71f7876c114f61e69fb5f683e4480089e90760ca3c4314",
+    "repair_preview_returns.tsv": "6458ec934348e1c2caae0d8c671cbba3b1e896e86d58b36cf293d7663fbd82ef",
+    "unresolved_by_instrument.tsv": "ac32c978e8a0fe6118460828eca8910082691effa9e26fdeb85227ae0b8bbfde",
+    "unresolved_by_year.tsv": "6f08886ec5d8da026bcce6445088d03613c3c5ad1bc1b7c264bdd148721b2517",
+    "unresolved_sessions_top.tsv": "5aba851da0da7028997ef00ee2b567b7c6d9572112146efcfd432c53f5277f30"
+  },
+  "recorded_at_utc": "2026-09-09T12:47:46Z",
+  "elapsed_seconds": 7.279183015001763,
+  "argv": [
+    "--repair-id",
+    "repair_v3",
+    "--stage",
+    "provider"
+  ],
+  "repair_id": "repair_v3",
+  "stage": "provider",
+  "output_sha256": {
+    "bin_decoding_proof.json": "a8caab483b88e5f54e9788ff13ae4d8838f77559a6717f058a8c4c136252feaa",
+    "preflight.json": "4f7f32f63fd14f7b2e122b82669a7720a7b4eeadb041fe9079f52193abb65eff",
+    "provider_patches.tsv": "764931c39d0fc45b80f91e8a6d04d98bd2b314ab96264066c9eb950204a65719",
+    "provider_verification.json": "95e2c847d96582c1e5c9b5f0301343c08765608e595ee7dedea98b738a042f4f"
+  }
+}

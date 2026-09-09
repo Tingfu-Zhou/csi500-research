@@ -1,0 +1,22 @@
+{
+  "source_provider": "/home/tingfu/.qlib/qlib_data/cn_data_community",
+  "corrected_provider": "/home/tingfu/projects/csi500-research/data/d12_repair/repair_v3/provider",
+  "mirror_mode": "link",
+  "files_mirrored": 61458,
+  "instruments_patched": 1,
+  "files_patched": 7,
+  "values_rescaled": 2604,
+  "maximum_float32_round_trip_error": 5.812991932252487e-08,
+  "fields_left_as_links": {
+    "adjclose": 1,
+    "amount": 1,
+    "change": 1
+  },
+  "calendar_sessions": 6462,
+  "files_checked": 61458,
+  "identical_by_inode": 61451,
+  "identical_by_digest": 0,
+  "patched_files_reverified": 7,
+  "maximum_reverification_error": 5.812991932252487e-08,
+  "classify_manifest_sha256": "5a82d19b2692cca00fcd975ea01f5e62bd2fa88c9373852817bfc6a6d88cbd67"
+}

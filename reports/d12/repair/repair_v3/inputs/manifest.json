@@ -1,0 +1,25 @@
+{
+  "status": "completed",
+  "processed_design_dir": "/home/tingfu/projects/csi500-research/data/d12_repair/repair_v3/processed/design",
+  "processed_oos_dir": "/home/tingfu/projects/csi500-research/data/d12_repair/repair_v3/processed/oos",
+  "corrected_provider": "/home/tingfu/projects/csi500-research/data/d12_repair/repair_v3/provider",
+  "oos_weight_rows_changed": 9290,
+  "oos_weight_days_changed": 73,
+  "membership_unchanged": true,
+  "recorded_at_utc": "2026-09-09T12:48:24Z",
+  "elapsed_seconds": 37.06269711999994,
+  "argv": [
+    "--repair-id",
+    "repair_v3",
+    "--stage",
+    "inputs"
+  ],
+  "repair_id": "repair_v3",
+  "stage": "inputs",
+  "output_sha256": {
+    "benchmark_weight_changes_by_day.tsv": "453c634b2bf91b5c9cf0382d8d0e59824faaf8e4a8e8f6e7c46bceaada3c274a",
+    "benchmark_weight_changes_top.tsv": "b2e034a3e2e74836f55cf824dd338b158fb7a09f54bb2f1c9d91ed8103fd7f15",
+    "preflight.json": "f5648c4a3b6a735590f9fd18bbfe4e83ec5f58901c5023576a8b33aa015211c3",
+    "rebuilt_inputs.json": "50dd8d371f0bc519b436ba1e74f9fa38fd4b1bb16e3c4e033e3fc5e2aea0710a"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "prediction_year": 2025,
+  "model_cutoff": "2024-12-31 00:00:00",
+  "last_training_label_end": "2024-12-30 00:00:00",
+  "training_rows": 270566,
+  "inference_rows": 26500,
+  "inference_dates": 53,
+  "feature_abstentions": 7,
+  "rows_without_evaluation_label": 75,
+  "last_inference_date": "2025-12-31 00:00:00",
+  "calibration": {
+    "method": "date_balanced_zero_intercept_ols",
+    "coefficient": 0.0023126677972302822,
+    "observations": 200043,
+    "dates": 407,
+    "history_start": "2017-01-06",
+    "history_end": "2024-12-20",
+    "score_label_pearson": 0.045202296003427934,
+    "last_label_end": "2024-12-30"
+  },
+  "model_parameters": {
+    "boosting_type": "gbdt",
+    "class_weight": null,
+    "colsample_bytree": 1.0,
+    "importance_type": "split",
+    "learning_rate": 0.1,
+    "max_depth": -1,
+    "min_child_samples": 20,
+    "min_child_weight": 0.001,
+    "min_split_gain": 0.0,
+    "n_estimators": 100,
+    "n_jobs": null,
+    "num_leaves": 31,
+    "objective": null,
+    "random_state": 42,
+    "reg_alpha": 0.0,
+    "reg_lambda": 0.0,
+    "subsample": 1.0,
+    "subsample_for_bin": 200000,
+    "subsample_freq": 0
+  }
+}
