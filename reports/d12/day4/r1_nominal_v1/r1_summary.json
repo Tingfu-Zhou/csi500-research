@@ -1,0 +1,77 @@
+{
+  "classification": "registered_R1_nominal_on_repaired_R0",
+  "decision_k": 0.5,
+  "execution_k": 0.5,
+  "extra_multiplier": 1.0,
+  "predictions_reused_from": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+  "model_fitted": false,
+  "performance": {
+    "months": 92,
+    "annualized_excess_return": 0.037396292322368185,
+    "annualized_tracking_error": 0.06980604520730506,
+    "information_ratio": 0.5357171031722442,
+    "identity_ir_times_te": 0.037396292322368185,
+    "newey_west_t_by_lag": {
+      "3": 1.5718099073417962,
+      "4": 1.5936711920103224,
+      "5": 1.6163135393524837,
+      "6": 1.6321251738647007
+    },
+    "newey_west_t_minimum": 1.5718099073417962,
+    "newey_west_decision_rule": "minimum_across_configured_lags",
+    "maximum_relative_drawdown": 0.1344236250274975,
+    "portfolio_cumulative_return": 1.8332587731569272,
+    "benchmark_cumulative_return": 1.1501342961961596,
+    "cumulative_excess_return_difference": 0.6831244769607676
+  },
+  "decisions": 392,
+  "solver_status_counts": {
+    "optimal": 392
+  },
+  "fallback_used": 0,
+  "amount_buy_forbidden_name_decisions": 568,
+  "sigma_source_counts": {
+    "rolling": 200699,
+    "cross_section_median": 1402,
+    "constant_fallback": 0
+  },
+  "zero_gate": {
+    "run_id": "zero_v1",
+    "manifest_sha256": "7c18ae569ed73c8f566057795faa6ed760cd9163323113ca286484dbc0e5f474",
+    "gate_sha256": "afd5ae01ea63cda8b2fecf766cfa048b0496d31002e803df2526dffee08a73e9",
+    "gate": {
+      "passed": true,
+      "full_period": true,
+      "days": 1859,
+      "decisions": 392,
+      "source_baseline": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+      "not_compared_to": "reports/d11/d11_v1",
+      "decision_k": 0.0,
+      "structural_bypass": "src.d12_r1.simulate_r1 -> src.d11_core.simulate_causal",
+      "maximum_errors": {
+        "daily": 0.0,
+        "returns": 0.0,
+        "targets": 0.0,
+        "orders": 0.0,
+        "trades": 0.0
+      },
+      "rtol": 2e-09,
+      "atol": {
+        "daily": 0.0001,
+        "returns": 1e-09,
+        "targets": 1e-09,
+        "orders": 1e-05,
+        "trades": 1e-05
+      },
+      "r1_zero_coefficient_gate_satisfied": true,
+      "p0_membership_quality_certified": false
+    }
+  },
+  "historical_decision": "No-Go",
+  "comparison_status": "provisional_due_to_unresolved_P0_12",
+  "new_oos_validation": false,
+  "day5_pending": [
+    "repaired R0 and R1 attribution/IC",
+    "execution impact x2"
+  ]
+}
