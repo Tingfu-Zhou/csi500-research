@@ -1,11 +1,11 @@
 {
   "recorded_on": "2026-09-09",
-  "scope": "production failure diagnosis and remote patch; successful local Qlib full run still pending",
+  "scope": "day3_v2 result review and targeted independent-price evidence collector; repaired R0 still pending",
   "base_branch": "d12",
-  "base_commit": "4f63fcd0fda65758f9e4e6841958e8a14e8973be",
+  "base_commit": "4e5290d814f2fab1275014e2a4c7bf423320794c",
   "tests": {
-    "d11_and_d12_passed": 102,
-    "new_day3_passed": 20,
+    "d11_and_d12_passed": 104,
+    "new_day3_passed": 22,
     "deselected": 1,
     "deselected_test": "test_the_accepted_d1_to_d10_files_are_still_byte_identical",
     "reason": "GitHub connector did not deliver the existing reports/d6_covariance_latest.npz binary. The original physical-file test was not edited; run it on the user's original computer.",
@@ -27,9 +27,11 @@
     "basis": "config/d11_baseline.json protected_blobs versus d12 base Git tree"
   },
   "runtime": {"python": "3.12.14", "pandas": "2.3.3", "cvxpy": "1.9.2", "clarabel": "0.11.1", "lightgbm": "4.7.0"},
-  "real_data_pipeline_run": false,
+  "real_data_pipeline_run": true,
+  "real_data_run_id": "day3_v2",
+  "real_data_run_status": "completed_but_p0_evidence_gate_open",
   "repaired_r0_established": false,
   "formal_r1_ready": false,
   "frozen_r1_config_changed": false,
-  "user_run": "python -u scripts/d12_day3.py --run-id day3_v2 --replay"
+  "user_run": "python -u scripts/d12_collect_price_reference.py --run-id price_ref_v1 && python -u scripts/d12_day3.py --run-id day3_v3 --replay"
 }
