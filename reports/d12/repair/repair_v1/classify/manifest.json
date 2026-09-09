@@ -1,0 +1,55 @@
+{
+  "status": "completed",
+  "repository": {
+    "branch": "d12",
+    "head": "1b85aea1da91b3c8e5d04ebcd97ddb6274c89f10",
+    "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "protected_tracked_files": 140
+  },
+  "classification": {
+    "observed_rows": 3784602,
+    "instruments": 1414,
+    "factor_consistent": 3753655,
+    "factor_contradicted": 29529,
+    "no_independent_evidence": 1418,
+    "contradicted_instruments": 501,
+    "raw_close_contradicted_rows": 0,
+    "raw_close_contradicted_instruments": 0,
+    "independent_coverage": 0.9996253238781779
+  },
+  "plan_segments": 30030,
+  "plan_instruments": 501,
+  "design_window_breakpoints": 4956,
+  "verification": {
+    "checked_instruments": 501,
+    "checked_ratios": 29529,
+    "maximum_corrected_ratio_error": 4.440892098500626e-16,
+    "maximum_consistent_ratio_shift": 2.220446049250313e-16
+  },
+  "anchor_rule": "earliest",
+  "recorded_at_utc": "2026-09-09T11:45:32Z",
+  "elapsed_seconds": 83.14470292299666,
+  "argv": [
+    "--repair-id",
+    "repair_v1",
+    "--stage",
+    "classify"
+  ],
+  "repair_id": "repair_v1",
+  "stage": "classify",
+  "output_sha256": {
+    "factor_classification_retained.parquet": "042bf7690cb25fcd097108576293faf4cf6dac27d71a70c53a0fc766bf718446",
+    "factor_contradictions.tsv": "8accf6ea640ce0c3c29ec57053955a2dd9c6241744b491c028a3099afe31d8f1",
+    "independent_reference_inventory.json": "93fd1310685ce98e5e2c7ceb56b5dfdf22edffd1a630ac4d9df5046c2469db43",
+    "preflight.json": "336a25978ce65cebd4cf514ad904fa8d7b4b85d4a2c3b7421cab66ab5e41ce7d",
+    "repair_plan.json": "9cc10d186ca82e94db096a491514a7331150eb124572159bdbd8a78d2f38fb0a",
+    "repair_plan.parquet": "a85e4e146938c3ad755901ef5f3ab3c911cecdeae051948e1034feefbc325134",
+    "repair_plan.tsv": "e900213389aa66d3971767fb72ac24160d5fdd286d12ad96000fcd756b42507b",
+    "repair_preview_returns.tsv": "1e8662b5cd065908095af6e02cadce9a645ee04a53bca0c52e52391b1d093471",
+    "unresolved_by_instrument.tsv": "ac32c978e8a0fe6118460828eca8910082691effa9e26fdeb85227ae0b8bbfde",
+    "unresolved_by_year.tsv": "6f08886ec5d8da026bcce6445088d03613c3c5ad1bc1b7c264bdd148721b2517",
+    "unresolved_sessions_top.tsv": "2b02a840465efaf35d64139b4a6c246dbdf775b1196a10a2fc201dbbd9152e01"
+  }
+}

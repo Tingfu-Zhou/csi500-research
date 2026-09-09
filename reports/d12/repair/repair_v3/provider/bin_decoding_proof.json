@@ -1,0 +1,17 @@
+{
+  "checks": [
+    {
+      "instrument": "SZ302132",
+      "field": "close",
+      "sessions_compared": 378,
+      "maximum_relative_error": 0.0
+    },
+    {
+      "instrument": "SZ302132",
+      "field": "factor",
+      "sessions_compared": 378,
+      "maximum_relative_error": 0.0
+    }
+  ],
+  "end_of_window": "2026-08-31"
+}

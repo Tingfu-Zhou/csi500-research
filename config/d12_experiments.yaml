@@ -336,3 +336,34 @@ day3_price_chain_repair:
     修复后的 R0 是“价格链可信”的 R0，不是“全部 P0 已关闭”的 R0；它仍带着一个已披露、
     未修复的 A 类成分时点问题。修复是数据订正，不是策略改进：收益升降都如实报告，
     历史 No-Go 不变，归因质量仍为未通过，第四天的 R1 零系数全期门仍是独立必过项。
+
+  # --- 2026-09-09 修订：第一版分类器判据不成立 ---------------------------------
+  revision_2026_09_09:
+    supersedes: "decision_rule.factor_ratio_tolerance = 1.0e-3（单日比值判定）"
+    why: >-
+      repair_v1 的 classify 退出码为 0，却产出 29,529 行“矛盾”、501 只、30,030 段、
+      4,956 个设计期断点。其中 83.9% 落在 0.1%~0.2%、14.2% 落在 0.2%~0.5%，紧贴阈值堆积——
+      阈值切过噪声的形状。SH600017 的 $factor 在三个被标记日都回到同一个 0.488968402，
+      SH600021 下跳 0.11% 六周后又回来：因子围绕一个水平抖动并回归，不是台阶。
+      而修复模型是分段常数，只能表达持久的水平位移。
+    new_decision_rule:
+      quantity: "scale(t) = factor(t) / independent_factor(t)"
+      screen_tol: 5.0e-3          # 只筛候选，不作判定
+      confirm_tol: 5.0e-3         # 两侧中位数水平必须真的位移
+      level_window: 5             # 每侧至多 5 个观测
+      min_level_observations: 3   # 被已确认断点压短的一侧低于此值不予确认
+      max_break_share: 0.02       # 长序列的模型拟合闸门
+      settle_order: "按候选自身单日跳变强度由大到小；窗口只在已确认断点处截断"
+      new_verdict: factor_noise_not_persistent
+    correction_unchanged: >-
+      检测与修正是两个问题。检测必须稳健（中位数），修正的目标是已知的（独立比值），
+      所以乘数仍取 independent_ratio / observed_ratio，SZ302132 的 2025-02-24 依旧精确回到 -1.5198%。
+      verify_repair 在 1e-12 上门控断点比值与段内比值，残余水平错配只报告不门控。
+    new_gate:
+      flag: "--minimum-separation"
+      default: 3.0
+      rule: "最小已确认断点必须至少是本次实测单日抖动 p99.99 的 3 倍，否则拒绝冻结计划"
+      rationale: >-
+        repair_v1 真正缺的不是更好的阈值，而是没有任何东西告诉你结果不成立。
+        由运行自己测量噪声底并与最小确认断点比较，不需要事先拍一个数。
+    evidence: "reports/d12/repair/repair_v1/classify/（保留为失败证据，不得删除或复用该 run-id）"

@@ -1,0 +1,14 @@
+{
+  "sessions_measured": 547617,
+  "one_session_jump_quantiles": {
+    "0.5": 3.1753222592190156e-05,
+    "0.9": 0.00022813823257707982,
+    "0.99": 0.000967590211615077,
+    "0.999": 0.002581422348871768,
+    "0.9999": 0.007107634142899055,
+    "1.0": 1.506545724638249
+  },
+  "confirmed_break_jump_minimum": 0.005011669446374656,
+  "confirmed_breaks": 422,
+  "note": "A healthy separation shows the unconfirmed wobble ending well below the smallest confirmed break. Overlap means the thresholds are cutting through noise."
+}

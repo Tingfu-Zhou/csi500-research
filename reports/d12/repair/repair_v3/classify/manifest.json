@@ -1,0 +1,83 @@
+{
+  "status": "completed",
+  "repository": {
+    "branch": "d12",
+    "head": "f941bfc937ef63f021348f7e891c5549c66540b8",
+    "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+    "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+    "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+    "protected_tracked_files": 140
+  },
+  "classification": {
+    "observed_rows": 3784602,
+    "instruments": 1414,
+    "factor_consistent": 3782608,
+    "factor_contradicted": 422,
+    "factor_noise_not_persistent": 154,
+    "no_independent_evidence": 1418,
+    "contradicted_instruments": 187,
+    "screened_but_not_persistent_instruments": 31,
+    "raw_close_contradicted_rows": 0,
+    "raw_close_contradicted_instruments": 0,
+    "independent_coverage": 0.9996253238781779
+  },
+  "plan_segments": 2,
+  "plan_instruments": 1,
+  "design_window_breakpoints": 0,
+  "restricted_to": [
+    "SZ302132"
+  ],
+  "breaks_excluded_and_left_open": 421,
+  "noise_profile": {
+    "sessions_measured": 547617,
+    "one_session_jump_quantiles": {
+      "0.5": 3.1753222592190156e-05,
+      "0.9": 0.00022813823257707982,
+      "0.99": 0.000967590211615077,
+      "0.999": 0.002581422348871768,
+      "0.9999": 0.007107634142899055,
+      "1.0": 1.506545724638249
+    },
+    "confirmed_break_jump_minimum": 0.005011669446374656,
+    "confirmed_breaks": 422,
+    "note": "A healthy separation shows the unconfirmed wobble ending well below the smallest confirmed break. Overlap means the thresholds are cutting through noise."
+  },
+  "separation_over_measured_wobble": 700.0818825951757,
+  "verification": {
+    "checked_instruments": 1,
+    "checked_breaks": 1,
+    "maximum_corrected_ratio_error": 1.1102230246251565e-16,
+    "maximum_within_segment_shift": 2.220446049250313e-16,
+    "maximum_residual_level_mismatch": 9.157595347808467e-06,
+    "residual_level_note": "Reported, not gated. A residual up to about 0.5% is the provider's own factor wobble, not a defect in the plan."
+  },
+  "anchor_rule": "earliest",
+  "recorded_at_utc": "2026-09-09T12:37:49Z",
+  "elapsed_seconds": 64.8468821250026,
+  "argv": [
+    "--repair-id",
+    "repair_v3",
+    "--stage",
+    "classify",
+    "--restrict-to",
+    "SZ302132"
+  ],
+  "repair_id": "repair_v3",
+  "stage": "classify",
+  "output_sha256": {
+    "excluded_findings.tsv": "14a42e107a4c76930ffad70a536733207b8822c6c6302c75811385e8bfc70a9b",
+    "factor_classification_retained.parquet": "588ea3bd61d8ab184f168a149b35f2c3cbd871044b9c9dd1d16f01b0e087a599",
+    "factor_contradictions.tsv": "1357ae83dfd8f33cfee282c277e4dff27c8bad21439356362671bdcc4ed5c6a1",
+    "independent_reference_inventory.json": "93fd1310685ce98e5e2c7ceb56b5dfdf22edffd1a630ac4d9df5046c2469db43",
+    "noise_profile.json": "300907a61175bb1462329e55e44dcfb08127a01e3576c1f59190ee4f874fad0b",
+    "plan_scope.json": "18f5cb1e842d872a736e2cc98a4501a2194c6cef489e4e3d2951dcb14e2198ea",
+    "preflight.json": "e6580f84147590f5aed611b6ed875b29f9ee4b862aaeab50470ac5b1aa0329ad",
+    "repair_plan.json": "62947952b971cf9e62fdc97a0cb11b573366b2907743a7eec361ebbcb26703d0",
+    "repair_plan.parquet": "ead19af4b768e556ade53a2809c40421c788bb4a80dc95a4aeb0a74a6e4ba86d",
+    "repair_plan.tsv": "d5caacdbabd241cd1d71f7876c114f61e69fb5f683e4480089e90760ca3c4314",
+    "repair_preview_returns.tsv": "6458ec934348e1c2caae0d8c671cbba3b1e896e86d58b36cf293d7663fbd82ef",
+    "unresolved_by_instrument.tsv": "ac32c978e8a0fe6118460828eca8910082691effa9e26fdeb85227ae0b8bbfde",
+    "unresolved_by_year.tsv": "6f08886ec5d8da026bcce6445088d03613c3c5ad1bc1b7c264bdd148721b2517",
+    "unresolved_sessions_top.tsv": "5aba851da0da7028997ef00ee2b567b7c6d9572112146efcfd432c53f5277f30"
+  }
+}

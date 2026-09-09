@@ -1,0 +1,135 @@
+{
+  "processed_design_dir": "data/d12_repair/repair_v3/processed/design",
+  "processed_oos_dir": "data/d12_repair/repair_v3/processed/oos",
+  "design_files_copied_unchanged": {
+    "benchmark_weights": {
+      "source": "data/processed/design/benchmark_weights.parquet",
+      "sha256": "58c80e22e7965dea66b0bd0705db625a609e06f47a7b9285dafcfd5266867757"
+    },
+    "tradability_flags": {
+      "source": "data/processed/design/tradability_flags.parquet",
+      "sha256": "0cc3d8ea00b36c4a80ef92e2322edaefeb875de6b65d2fde782902f4e1e4f76e"
+    }
+  },
+  "design_window_parity": "asserted by build_full_benchmark_weights",
+  "design_end": "2018-12-31",
+  "benchmark_weight_audit": {
+    "start": "2014-01-02",
+    "end": "2026-08-31",
+    "trade_days": 3079,
+    "rows": 1539500,
+    "constituents_min": 500,
+    "constituents_max": 500,
+    "maximum_weight_sum_error": 2.220446049250313e-16,
+    "snapshot_mismatch_days": 0,
+    "frozen_membership_corrections": [
+      {
+        "correction_id": 1,
+        "effective_start": "2017-02-14 00:00:00",
+        "effective_end": "2017-06-29 00:00:00",
+        "remove_instrument": "SH600549",
+        "add_instrument": "SH600848",
+        "anchor_snapshot_date": "2017-02-28 00:00:00",
+        "reason": "2017-02-14 临时调整：厦门钨业调出中证500，上海临港调入；Qlib 社区成分区间延迟至 2017-06-30",
+        "evidence": "Tushare index_weight 月末快照；https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600549.phtml；https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600848.phtml"
+      }
+    ],
+    "d9_membership_replacements": [
+      {
+        "correction_id": 1,
+        "effective_start": "2019-01-18 00:00:00",
+        "effective_end": "2019-06-27 00:00:00",
+        "remove_instrument": "SH600270",
+        "add_instrument": "SH601598",
+        "anchor_snapshot_date": "2019-01-31 00:00:00",
+        "reason": "中国外运换股吸收合并外运发展，自中国外运 A 股上市日起临时调样",
+        "evidence": "https://www.sse.com.cn/market/sseindex/diclosure/c/c_20181217_4694178.shtml"
+      },
+      {
+        "correction_id": 2,
+        "effective_start": "2020-08-18 00:00:00",
+        "effective_end": "2020-12-30 00:00:00",
+        "remove_instrument": "SZ002470",
+        "add_instrument": "SH603708",
+        "anchor_snapshot_date": "2020-08-31 00:00:00",
+        "reason": "中证500临时调出 *ST金正并调入家家悦",
+        "evidence": "https://pdf.dfcfw.com/pdf/H2_AN202008251401219756_1.pdf"
+      },
+      {
+        "correction_id": 3,
+        "effective_start": "2021-09-13 00:00:00",
+        "effective_end": "2021-12-30 00:00:00",
+        "remove_instrument": "SH600260",
+        "add_instrument": "SH600297",
+        "anchor_snapshot_date": "2021-09-30 00:00:00",
+        "reason": "凯乐科技退出中证500且广汇汽车同日进入",
+        "evidence": "https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600297.phtml"
+      },
+      {
+        "correction_id": 4,
+        "effective_start": "2021-09-28 00:00:00",
+        "effective_end": "2021-12-30 00:00:00",
+        "remove_instrument": "SH600068",
+        "add_instrument": "SH601868",
+        "anchor_snapshot_date": "2021-09-30 00:00:00",
+        "reason": "葛洲坝退出中证500且中国能建同日进入",
+        "evidence": "https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/601868.phtml"
+      },
+      {
+        "correction_id": 5,
+        "effective_start": "2026-01-12 00:00:00",
+        "effective_end": "2026-06-29 00:00:00",
+        "remove_instrument": "SH600079",
+        "add_instrument": "SH688037",
+        "anchor_snapshot_date": "2026-01-30 00:00:00",
+        "reason": "2026年1月9日收市后中证500调出 ST人福并调入芯源微",
+        "evidence": "https://hk.investing.com/news/stock-market-news/article-1256533"
+      }
+    ],
+    "d9_identifier_alias_removals": [
+      {
+        "rule_number": 1,
+        "alias_instrument": "SZ300114",
+        "canonical_instrument": "SZ302132",
+        "effective_start": "2023-12-29",
+        "effective_end": "2025-06-29",
+        "removed_interval_rows": 3,
+        "reason": "Qlib 同时保留变更前后代码；Tushare 已把同一上市主体历史权重统一映射为 302132",
+        "evidence": "https://disc.static.szse.cn/disc/disk03/finalpage/2025-02-15/cedb693a-f5ee-4463-9682-ea33d406b569.PDF"
+      }
+    ],
+    "d9_synthetic_snapshot_bridges": [
+      {
+        "rule_number": 1,
+        "trade_date": "2021-09-13",
+        "source_instrument": "SH601868",
+        "target_instrument": "SH600068",
+        "weight_preserved": true,
+        "reason": "9月30日锚点已含9月28日后继证券；9月13日合成快照仍应保留当时有效的葛洲坝",
+        "evidence": "https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpXiangGuan/stockid/600068.phtml"
+      }
+    ],
+    "membership_recovery_rules": 7,
+    "design_parity_passed": true
+  },
+  "tradability_audit": {
+    "start": "2019-01-02",
+    "end": "2026-08-31",
+    "rows": 929500,
+    "can_buy_rate": 0.9203388918773534,
+    "can_sell_rate": 0.9971178052716514,
+    "suspended_rows": 2163,
+    "st_rows": 932,
+    "young_rows": 336,
+    "one_price_up_rows": 511,
+    "one_price_down_rows": 516
+  },
+  "oos_weight_rows_changed": 9290,
+  "oos_weight_days_changed": 73,
+  "maximum_weight_change": 0.012227862180327337,
+  "membership_unchanged": true,
+  "sha256": {
+    "oos/benchmark_weights.parquet": "39c74cf2679cc11c095e7003aff49f1020cbe52711fe9510ade8cf8f03f5438d",
+    "oos/tradability_flags.parquet": "78b6c10927907a80139da57bf1d3fff165e7b7a59e90470ccfb22e2f8dfa8859"
+  }
+}

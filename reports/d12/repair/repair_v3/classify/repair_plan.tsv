@@ -1,0 +1,3 @@
+instrument	segment_start	segment_end	multiplier	observed_rows	is_anchor	anchor_rule	breakpoint_date	breakpoint_observed_ratio	breakpoint_independent_ratio	breakpoint_previous_session
+SZ302132	2025-02-17	2025-02-23	1.0	5	True	earliest	2025-02-24	5.975925891558519	1.0	2025-02-21
+SZ302132	2025-02-24	2026-08-31	0.16733808587094115	372	False	earliest				

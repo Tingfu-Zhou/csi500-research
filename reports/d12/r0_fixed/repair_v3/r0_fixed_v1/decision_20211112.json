@@ -1,0 +1,22 @@
+{
+  "solver_status": "optimal",
+  "fallback_used": false,
+  "initial_construction_exempt": false,
+  "pretrade_cash_weight": 1.1102230246251565e-16,
+  "maximum_stock_active": 0.01500000001316745,
+  "maximum_industry_active": 0.01999999998991818,
+  "maximum_style_active": 0.1804214876082165,
+  "target_total_turnover": 0.14999998943207143,
+  "mandatory_turnover": 3.7483983753479754e-10,
+  "target_active_turnover": 0.1499999890572316,
+  "target_weight_sum_error": 2.508662166889053e-10,
+  "prohibited_buy_weight": 0.0,
+  "passed": true,
+  "signal_date": "2021-11-12 00:00:00",
+  "execution_date": "2021-11-15 00:00:00",
+  "decision_asof": "2021-11-12 00:00:00",
+  "eligibility_asof": "2021-11-11 00:00:00",
+  "signal_nav": 21121581.078720946,
+  "actual_holdings": 479,
+  "prohibited_or_unknown_buy_names": 46
+}

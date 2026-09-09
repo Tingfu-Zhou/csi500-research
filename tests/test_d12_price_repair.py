@@ -21,8 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.d12_price_repair import (ADJUSTED_COLUMNS, apply_factor_repair, build_repair_plan,
-                                  classification_summary, classify_factor_rows, repair_effect,
-                                  repair_preview, segment_multipliers, verify_repair)
+                                  classification_summary, classify_factor_rows, noise_profile,
+                                  repair_effect, repair_preview, segment_multipliers, verify_repair)
 from src.d12_provider import (build_corrected_provider, bin_series, prove_bin_decoding, read_day_bin,
                               read_provider_calendar, verify_corrected_provider, write_day_bin)
 from src.d12_repo import D12Error
@@ -77,6 +77,9 @@ def test_recorded_sz302132_step_is_classified_as_contradicted():
     # The original adjusted return, straight off the recorded Qlib quotes.
     assert step.mark_return == pytest.approx(4.8851063486, rel=1e-6)
     assert classified.verdict.eq('factor_consistent').sum() == 5
+    # The correction comes from the robust level shift, so it agrees with the single
+    # session ratio only up to the wobble the medians are there to absorb.
+    assert step.implied_correction == pytest.approx(1 / 5.975925891558519, rel=1e-4)
 
 
 def test_sessions_without_an_independent_factor_are_never_called_consistent():
@@ -160,15 +163,44 @@ def test_the_earliest_anchor_leaves_pre_defect_history_at_multiplier_exactly_one
     assert build_repair_plan(classified, anchor='latest').multiplier.iloc[0] != 1.0
 
 
+def stepped_series(levels, *, instrument='SZ000002'):
+    """One clean chain whose factor sits at each level for a run of sessions."""
+    dates = [str(d.date()) for d in pd.bdate_range('2024-01-01', periods=sum(n for _, n in levels))]
+    raw = {d: 10.0 for d in dates}
+    factor, position = {}, 0
+    for value, count in levels:
+        for date in dates[position:position + count]:
+            factor[date] = value
+        position += count
+    return raw, factor, dates
+
+
 def test_two_breakpoints_chain_multiplicatively():
-    raw = {f'2024-01-0{d}': 10.0 for d in range(1, 7)}
-    factor = {'2024-01-01': 1.0, '2024-01-02': 1.0, '2024-01-03': 2.0,
-              '2024-01-04': 2.0, '2024-01-05': 6.0, '2024-01-06': 6.0}
+    raw, factor, dates = stepped_series([(1.0, 7), (2.0, 7), (6.0, 7)])
     classified = classify_factor_rows(audit_frame(raw, factor, reference_factor=1.0, instrument='SZ000002'))
+    assert list(classified.loc[classified.verdict.eq('factor_contradicted'), 'trade_date']) == [
+        pd.Timestamp(dates[7]), pd.Timestamp(dates[14])]
     plan = build_repair_plan(classified, anchor='latest')
     verify_repair(classified, plan)
-    multipliers = segment_multipliers(plan, 'SZ000002', pd.to_datetime(list(raw)))
-    assert list(multipliers) == pytest.approx([6.0, 6.0, 3.0, 3.0, 1.0, 1.0])
+    multipliers = segment_multipliers(plan, 'SZ000002', pd.to_datetime(dates))
+    assert list(multipliers) == pytest.approx([6.0] * 7 + [3.0] * 7 + [1.0] * 7)
+
+
+def test_breaks_too_close_together_are_left_unconfirmed_rather_than_invented():
+    """A stated limitation, checked: with no room for a median, the answer is 'unknown'.
+
+    Two splices two sessions apart cannot be told from one splice plus wobble, so the
+    stronger one is confirmed and the weaker is left as an unresolved candidate. The
+    residual then shows up in `verify_repair`'s reported level mismatch rather than
+    being quietly absorbed into a multiplier.
+    """
+    raw, factor, dates = stepped_series([(1.0, 7), (2.0, 2), (6.0, 7)], instrument='SZ000004')
+    classified = classify_factor_rows(audit_frame(raw, factor, reference_factor=1.0, instrument='SZ000004'))
+    breaks = classified.loc[classified.verdict.eq('factor_contradicted')]
+    assert len(breaks) == 1 and breaks.iloc[0].trade_date == pd.Timestamp(dates[9])
+    assert classified.verdict.eq('factor_noise_not_persistent').sum() == 1
+    proof = verify_repair(classified, build_repair_plan(classified))
+    assert proof['maximum_residual_level_mismatch'] > .1
 
 
 def test_a_raw_price_disagreement_refuses_a_factor_repair():
@@ -180,12 +212,21 @@ def test_a_raw_price_disagreement_refuses_a_factor_repair():
         build_repair_plan(classified)
 
 
-def test_verify_repair_rejects_a_plan_that_does_not_fix_the_ratio():
+def test_verify_repair_rejects_a_plan_that_does_not_fix_the_break_ratio():
     classified = classify_factor_rows(recorded_audit())
     plan = build_repair_plan(classified)
     plan.loc[plan.index[0], 'multiplier'] = 2.0
-    with pytest.raises(D12Error, match='still disagrees with evidence'):
+    with pytest.raises(D12Error, match='still disagrees with the evidence'):
         verify_repair(classified, plan)
+
+
+def test_verify_repair_reports_the_residual_level_mismatch_without_gating_on_it():
+    """The correction is anchored on one session's factors, which carry the wobble."""
+    classified = classify_factor_rows(recorded_audit())
+    proof = verify_repair(classified, build_repair_plan(classified))
+    assert proof['maximum_corrected_ratio_error'] < 1e-12
+    assert proof['maximum_within_segment_shift'] < 1e-12
+    assert 0 < proof['maximum_residual_level_mismatch'] < 1e-3
 
 
 def test_verify_repair_rejects_a_plan_that_disturbs_a_consistent_ratio():
@@ -197,7 +238,7 @@ def test_verify_repair_rejects_a_plan_that_disturbs_a_consistent_ratio():
     extra['segment_start'] = pd.Timestamp('2025-02-18')
     extra['segment_end'] = pd.Timestamp('2025-02-19')
     extra['multiplier'] = float(plan.multiplier.iloc[0]) * 1.5
-    with pytest.raises(D12Error, match='disturbed an already-consistent'):
+    with pytest.raises(D12Error, match='within-segment ratio'):
         verify_repair(classified, pd.concat([plan, extra], ignore_index=True))
 
 
@@ -415,4 +456,71 @@ def test_an_empty_plan_still_produces_a_usable_preview_and_design_check():
     assert preview.adjusted_return_change.abs().gt(1e-9).sum() == 0
     assert preview.verdict.eq('factor_contradicted').sum() == 0
     assert plan.loc[plan.breakpoint_date.notna() & plan.breakpoint_date.le(pd.Timestamp('2018-12-31'))].empty
-    assert verify_repair(classified, plan)['checked_ratios'] == 0
+    assert verify_repair(classified, plan)['checked_breaks'] == 0
+
+
+# --------------------------------------------------------------------------- the noise the first version mistook for defects
+
+def wobbling_series(sessions, *, level=0.4889684021472931, reference=3.156,
+                    sigma=0.0005, outlier=0.006, outlier_rate=0.02, seed=0):
+    """A clean chain carrying the community bundle's own factor wobble.
+
+    Shaped from what `repair_v1` actually measured: the `$factor` sits at a level
+    (SH600017 returns to 0.488968402 on three separate flagged dates) with most
+    sessions a fraction of a percent off it, plus a thin tail of single-session
+    excursions that reached 1.3%.  So: a tight centre the medians can see through,
+    and rare one-session outliers that clear the screen and must be rejected by
+    persistence rather than by the screen never seeing them.  Nothing here is a
+    defect, so nothing here may be planned for repair.
+    """
+    rng = np.random.default_rng(seed)
+    dates = pd.bdate_range('2014-01-02', periods=sessions)
+    noise = rng.normal(0, sigma, sessions)
+    noise[rng.random(sessions) < outlier_rate] += outlier * rng.choice([-1.0, 1.0], sessions)[0]
+    raw = {str(d.date()): 2.47 for d in dates}
+    factor = {str(d.date()): level * (1 + n) for d, n in zip(dates, noise)}
+    return audit_frame(raw, factor, reference_factor=reference, instrument='SH600017')
+
+
+def test_the_bundle_wobble_is_not_a_defect():
+    classified = classify_factor_rows(wobbling_series(400))
+    assert classified.verdict.eq('factor_contradicted').sum() == 0
+    assert build_repair_plan(classified).empty
+    # The wobble is visible and named, not silently folded into "consistent".
+    assert classified.verdict.eq('factor_noise_not_persistent').sum() > 0
+
+
+def test_a_real_step_still_survives_the_same_wobble():
+    """Detection has to work *through* the noise, not merely tolerate it."""
+    audit = wobbling_series(400)
+    half = len(audit) // 2
+    audit.loc[audit.index[half:], 'factor'] *= 5.976
+    classified = classify_factor_rows(audit)
+    breaks = classified.loc[classified.verdict.eq('factor_contradicted')]
+    assert len(breaks) == 1
+    assert breaks.iloc[0].trade_date == classified.trade_date.iloc[half]
+    plan = build_repair_plan(classified)
+    assert len(plan) == 2
+    verify_repair(classified, plan)
+
+
+def test_the_noise_profile_separates_the_wobble_from_the_break():
+    audit = wobbling_series(400)
+    audit.loc[audit.index[200:], 'factor'] *= 5.976
+    profile = noise_profile(classify_factor_rows(audit))
+    assert profile['confirmed_breaks'] == 1
+    # The floor the run measured must sit well below the smallest thing it confirmed.
+    assert profile['one_session_jump_quantiles']['1.0'] < profile['confirmed_break_jump_minimum'] / 100
+
+
+def test_a_series_that_is_mostly_breaks_is_refused_rather_than_planned():
+    """The failure mode that produced 30,030 segments must stop at the plan, not the provider."""
+    audit = wobbling_series(200, seed=3)
+    classified = classify_factor_rows(audit)
+    # Force the pathological shape the first version produced.
+    classified['verdict'] = np.where(classified.observed_factor_ratio.notna(),
+                                     'factor_contradicted', classified.verdict)
+    classified['implied_correction'] = (classified.independent_factor_ratio
+                                        / classified.observed_factor_ratio)
+    with pytest.raises(D12Error, match='model-fit limit'):
+        build_repair_plan(classified)

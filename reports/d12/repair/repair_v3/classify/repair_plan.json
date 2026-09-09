@@ -1,0 +1,75 @@
+{
+  "anchor_rule": "earliest",
+  "restricted_to": [
+    "SZ302132"
+  ],
+  "segments": [
+    {
+      "instrument": "SZ302132",
+      "segment_start": "2025-02-17 00:00:00",
+      "segment_end": "2025-02-23 00:00:00",
+      "multiplier": 1.0,
+      "observed_rows": 5,
+      "is_anchor": true,
+      "anchor_rule": "earliest",
+      "breakpoint_date": "2025-02-24 00:00:00",
+      "breakpoint_observed_ratio": 5.975925891558519,
+      "breakpoint_independent_ratio": 1.0,
+      "breakpoint_previous_session": "2025-02-21 00:00:00"
+    },
+    {
+      "instrument": "SZ302132",
+      "segment_start": "2025-02-24 00:00:00",
+      "segment_end": "2026-08-31 00:00:00",
+      "multiplier": 0.16733808587094115,
+      "observed_rows": 372,
+      "is_anchor": false,
+      "anchor_rule": "earliest",
+      "breakpoint_date": "NaT",
+      "breakpoint_observed_ratio": null,
+      "breakpoint_independent_ratio": null,
+      "breakpoint_previous_session": "NaT"
+    }
+  ],
+  "verification": {
+    "checked_instruments": 1,
+    "checked_breaks": 1,
+    "maximum_corrected_ratio_error": 1.1102230246251565e-16,
+    "maximum_within_segment_shift": 2.220446049250313e-16,
+    "maximum_residual_level_mismatch": 9.157595347808467e-06,
+    "residual_level_note": "Reported, not gated. A residual up to about 0.5% is the provider's own factor wobble, not a defect in the plan."
+  },
+  "classification": {
+    "observed_rows": 3784602,
+    "instruments": 1414,
+    "factor_consistent": 3782608,
+    "factor_contradicted": 422,
+    "factor_noise_not_persistent": 154,
+    "no_independent_evidence": 1418,
+    "contradicted_instruments": 187,
+    "screened_but_not_persistent_instruments": 31,
+    "raw_close_contradicted_rows": 0,
+    "raw_close_contradicted_instruments": 0,
+    "independent_coverage": 0.9996253238781779
+  },
+  "noise_profile": {
+    "sessions_measured": 547617,
+    "one_session_jump_quantiles": {
+      "0.5": 3.1753222592190156e-05,
+      "0.9": 0.00022813823257707982,
+      "0.99": 0.000967590211615077,
+      "0.999": 0.002581422348871768,
+      "0.9999": 0.007107634142899055,
+      "1.0": 1.506545724638249
+    },
+    "confirmed_break_jump_minimum": 0.005011669446374656,
+    "confirmed_breaks": 422,
+    "note": "A healthy separation shows the unconfirmed wobble ending well below the smallest confirmed break. Overlap means the thresholds are cutting through noise."
+  },
+  "separation_over_measured_wobble": 700.0818825951757,
+  "breaks_excluded_and_left_open": 421,
+  "membership_repair": "not attempted; P0-12 stays blocked on official effective-date sets",
+  "raw_price_defects_excluded": 0,
+  "design_window_breakpoints": [],
+  "design_window_note": "A breakpoint at or before design_end would move frozen design weights; D9 re-asserts those at rtol=1e-12, so the inputs stage refuses to proceed and the design caches would have to be rebuilt as a separate recorded decision."
+}

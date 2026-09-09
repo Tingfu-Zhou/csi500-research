@@ -1,0 +1,72 @@
+{
+  "status": "completed",
+  "original_run": "reports/d11/d11_v1",
+  "repaired_run": "/home/tingfu/projects/csi500-research/reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+  "original_performance": {
+    "months": 92,
+    "annualized_excess_return": 0.04928038579790758,
+    "annualized_tracking_error": 0.06824587355096423,
+    "information_ratio": 0.7221005935414729,
+    "identity_ir_times_te": 0.04928038579790758,
+    "newey_west_t_by_lag": {
+      "3": 1.9390513923739126,
+      "4": 1.9792248211104702,
+      "5": 2.0444836374401674,
+      "6": 2.1070907158877246
+    },
+    "newey_west_t_minimum": 1.9390513923739126,
+    "newey_west_decision_rule": "minimum_across_configured_lags",
+    "maximum_relative_drawdown": 0.10569541097837287,
+    "portfolio_cumulative_return": 2.0786902584702522,
+    "benchmark_cumulative_return": 1.1501342961961596,
+    "cumulative_excess_return_difference": 0.9285559622740926
+  },
+  "repaired_performance": {
+    "months": 92,
+    "annualized_excess_return": 0.038543382641389824,
+    "annualized_tracking_error": 0.07300162920573912,
+    "information_ratio": 0.5279797596402093,
+    "identity_ir_times_te": 0.038543382641389824,
+    "newey_west_t_by_lag": {
+      "3": 1.4984427674882244,
+      "4": 1.5437393801066703,
+      "5": 1.6037700503638168,
+      "6": 1.65112820293543
+    },
+    "newey_west_t_minimum": 1.4984427674882244,
+    "newey_west_decision_rule": "minimum_across_configured_lags",
+    "maximum_relative_drawdown": 0.14165624144268096,
+    "portfolio_cumulative_return": 1.8420032941184061,
+    "benchmark_cumulative_return": 1.1501342961961596,
+    "cumulative_excess_return_difference": 0.6918689979222465
+  },
+  "first_nav_divergence": "2025-03-03",
+  "diverging_sessions": 367,
+  "maximum_absolute_nav_difference": 2629931.2215873487,
+  "months_compared": 92,
+  "largest_monthly_difference_pp": 4.913449525480051,
+  "historical_decision": "No-Go",
+  "new_oos_validation": false,
+  "reading": "A repaired baseline replaces the old one for future comparison. The change is a data correction, not a strategy improvement, and must never be reported as one.",
+  "still_open": [
+    "P0-12 index membership effective dates and official weights remain blocked",
+    "attribution quality was not re-certified by this run",
+    "the day-4 zero-coefficient R1 gate is separate and still required"
+  ],
+  "recorded_at_utc": "2026-09-09T12:53:44Z",
+  "elapsed_seconds": 0.10629789500308107,
+  "argv": [
+    "--repair-id",
+    "repair_v3",
+    "--stage",
+    "compare"
+  ],
+  "repair_id": "repair_v3",
+  "stage": "compare",
+  "output_sha256": {
+    "comparison.json": "124f77ca6a604004d4b6068c528793e659f3f5a32a3fe76d541b1f1647c6ed6d",
+    "daily_nav_comparison.tsv": "20a57243a1e41b5a78c8896d51e5e8d69b726270c353e775dcdf5ed61d31d89a",
+    "monthly_excess_comparison.tsv": "5bb924063644c2bcd89f4815e2ba3488c74b9b0010a7f7bf12430ce81a095123",
+    "results_comparison.tsv": "30454803b5a7bef0c46ca382d81b5f4a0d55c587ed7400e9df499b3b3207c42f"
+  }
+}

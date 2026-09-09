@@ -1,0 +1,28 @@
+{
+  "status": "failed",
+  "error": "UnboundLocalError: cannot access local variable 'separation' where it is not associated with a value",
+  "recorded_at_utc": "2026-09-09T12:23:19Z",
+  "elapsed_seconds": 73.21402189200307,
+  "argv": [
+    "--repair-id",
+    "repair_v2",
+    "--stage",
+    "classify"
+  ],
+  "repair_id": "repair_v2",
+  "stage": "classify",
+  "output_sha256": {
+    "factor_classification_retained.parquet": "588ea3bd61d8ab184f168a149b35f2c3cbd871044b9c9dd1d16f01b0e087a599",
+    "factor_contradictions.tsv": "1357ae83dfd8f33cfee282c277e4dff27c8bad21439356362671bdcc4ed5c6a1",
+    "failure.txt": "0362aed169bcf123b2fe31de1fa18cb9ddf3b3fc179b94b6030be43c1ab9be16",
+    "independent_reference_inventory.json": "93fd1310685ce98e5e2c7ceb56b5dfdf22edffd1a630ac4d9df5046c2469db43",
+    "noise_profile.json": "300907a61175bb1462329e55e44dcfb08127a01e3576c1f59190ee4f874fad0b",
+    "preflight.json": "f3389b819996718252e4ea4fb4ee8a88029f4476e7613f525a311526e6d02c4a",
+    "repair_plan.parquet": "14cd42d0430d7da56e8c67531b8d58ca9235937a7a99502cd1ec78d81504188f",
+    "repair_plan.tsv": "1fdc109b5be000a3dbc84c464da3b8ed8bf7aaa12f1cb61a4ead4c74532fc343",
+    "repair_preview_returns.tsv": "d2a6ad2acbf1a3f8a64d8d8001253a8b2e4f290ada6a4dc7c2bb6a5153cd0adb",
+    "unresolved_by_instrument.tsv": "ac32c978e8a0fe6118460828eca8910082691effa9e26fdeb85227ae0b8bbfde",
+    "unresolved_by_year.tsv": "6f08886ec5d8da026bcce6445088d03613c3c5ad1bc1b7c264bdd148721b2517",
+    "unresolved_sessions_top.tsv": "5aba851da0da7028997ef00ee2b567b7c6d9572112146efcfd432c53f5277f30"
+  }
+}

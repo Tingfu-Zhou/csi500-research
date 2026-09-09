@@ -42,7 +42,8 @@ sys.path.insert(0, str(ROOT))
 from src.d12_repo import D12Error, sha256
 from src.d12_repair_io import StageOutput, require_stage
 from src.d12_price_repair import (build_repair_plan, classification_summary, classify_factor_rows,
-                                  repair_preview, resolve_reference_duplicates, verify_repair)
+                                  noise_profile, repair_preview, resolve_reference_duplicates,
+                                  verify_repair)
 from src.d12_provider import (build_corrected_provider, instrument_directory, prove_bin_decoding,
                               read_provider_calendar, verify_corrected_provider)
 from src.d12_repair_access import RepairedDataAccess, repaired_config
@@ -89,7 +90,8 @@ def run_preflight(output, config):
 #: cost gigabytes to answer questions none of the later stages ask.
 RETAINED = ['trade_date', 'instrument', 'factor', 'previous_factor', 'previous_trade_date',
             'reference_factor', 'previous_reference_factor', 'observed_factor_ratio',
-            'independent_factor_ratio', 'factor_ratio_error', 'implied_correction',
+            'independent_factor_ratio', 'scale', 'scale_jump', 'jump_strength', 'level_shift',
+            'segment_index', 'factor_ratio_error', 'implied_correction',
             'raw_close', 'reference_close', 'raw_close_error', 'raw_close_contradicted',
             'mark_return', 'raw_return_1d', 'return_span_sessions', 'limit_status',
             'up_limit', 'down_limit', 'weight', 'in_project_universe', 'verdict']
@@ -168,13 +170,40 @@ def scan_for_classification(access, config, weights, calendar, output, chunk_siz
         suspect = classified.instrument.isin(
             classified.loc[classified.verdict.eq('factor_contradicted') | classified.raw_close_contradicted,
                            'instrument'].unique())
-        retained.append(classified.loc[suspect | classified.verdict.eq('no_independent_evidence')].copy())
+        retained.append(classified.loc[
+            suspect | classified.verdict.isin(['no_independent_evidence', 'factor_noise_not_persistent'])].copy())
     if not totals:
         raise D12Error('The repair screen priced no instruments at all')
     counts = pd.DataFrame(totals).drop(columns='independent_coverage').sum().astype(int).to_dict()
     counts['independent_coverage'] = float(
         (counts['observed_rows'] - counts['no_independent_evidence']) / max(1, counts['observed_rows']))
     return pd.concat(retained, ignore_index=True), counts
+
+
+def separation_gate(profile, minimum, *, smallest=None):
+    """Refuse a plan whose smallest confirmed break sits inside the measured wobble.
+
+    `repair_v1` exited 0 with 30,030 segments over 501 securities because a fixed
+    ratio tolerance was cutting through the bundle's own factor wobble, and nothing
+    in the run said so.  Comparing the floor a run actually measured against the
+    smallest thing it confirmed catches that class of failure without anyone having
+    to guess the right threshold in advance.
+
+    Returns the separation ratio, or ``None`` when there is nothing to compare --
+    no confirmed breaks, or no measured floor.
+    """
+    floor = (profile.get('one_session_jump_quantiles') or {}).get('0.9999')
+    smallest = smallest if smallest is not None else profile.get('confirmed_break_jump_minimum')
+    if not floor or not smallest:
+        return None
+    separation = smallest / floor
+    if separation < minimum:
+        raise D12Error(
+            f'The smallest confirmed break ({smallest:.3%}) is only {separation:.1f}x the measured '
+            f'one-session wobble at p99.99 ({floor:.3%}), below the required {minimum:.1f}x. The '
+            'thresholds are cutting through noise rather than separating defects from it; review '
+            'noise_profile.json and factor_contradictions.tsv before planning any repair.')
+    return separation
 
 
 def stage_classify(args, config, output):
@@ -208,9 +237,39 @@ def stage_classify(args, config, output):
             f'{args.minimum_coverage:.2%}. Run scripts/d12_collect_factor_evidence.py first; a repair '
             'planned on thin evidence is a guess. See unresolved_by_year.tsv and unresolved_by_instrument.tsv '
             'in this stage directory for what is still missing.')
-    plan = build_repair_plan(classified, anchor=args.anchor)
-    proof = verify_repair(classified, plan)
-    preview = repair_preview(classified, plan)
+    profile = noise_profile(classified)
+    output.json('noise_profile.json', profile)
+    say(f'D12 measured wobble: {profile["one_session_jump_quantiles"]}; '
+        f'smallest confirmed break {profile["confirmed_break_jump_minimum"]}')
+
+    # Scope the *repair* before planning it. The classification covers the whole
+    # universe and stays visible in full; what gets rewritten is limited to securities
+    # with a recorded root cause, because that is what the week's plan asks for --
+    # repair what is proven, list what is not.
+    scope = sorted({name.upper() for name in (args.restrict_to or [])})
+    repairable = classified if not scope else classified.loc[classified.instrument.isin(scope)]
+    excluded = contradicted.loc[~contradicted.instrument.isin(scope)] if scope else contradicted.iloc[:0]
+    if scope:
+        missing = sorted(set(scope) - set(contradicted.instrument))
+        if missing:
+            raise D12Error(f'--restrict-to names securities with no confirmed break: {missing}')
+        output.table('excluded_findings', excluded.sort_values(['instrument', 'trade_date']))
+    output.json('plan_scope.json', {
+        'restricted_to': scope,
+        'confirmed_breaks_total': int(len(contradicted)),
+        'confirmed_break_instruments_total': int(contradicted.instrument.nunique()),
+        'breaks_in_scope': int(len(contradicted) - len(excluded)),
+        'breaks_excluded_and_left_open': int(len(excluded)),
+        'instruments_excluded_and_left_open': int(excluded.instrument.nunique()) if len(excluded) else 0,
+        'note': 'Excluded findings are reported, not repaired. They stay open until each one has an '
+                'independently checked root cause, the same standard SZ302132 had to meet.'})
+    in_scope_breaks = repairable.loc[repairable.verdict.eq('factor_contradicted'), 'factor_ratio_error']
+    separation = separation_gate(profile, args.minimum_separation,
+                                 smallest=float(in_scope_breaks.min()) if len(in_scope_breaks) else None)
+
+    plan = build_repair_plan(repairable, anchor=args.anchor)
+    proof = verify_repair(repairable, plan)
+    preview = repair_preview(repairable, plan)
     design_end = pd.Timestamp(config['windows']['design_end'])
     design_breaks = plan.loc[plan.breakpoint_date.notna() & plan.breakpoint_date.le(design_end)]
     output.parquet('repair_plan.parquet', plan)
@@ -219,20 +278,24 @@ def stage_classify(args, config, output):
         preview.adjusted_return_change.abs().gt(1e-9) | preview.verdict.eq('factor_contradicted')]
         .sort_values(['instrument', 'trade_date']))
     output.json('repair_plan.json', {
-        'anchor_rule': args.anchor, 'segments': plan.to_dict('records'),
-        'verification': proof, 'classification': summary,
+        'anchor_rule': args.anchor, 'restricted_to': scope, 'segments': plan.to_dict('records'),
+        'verification': proof, 'classification': summary, 'noise_profile': profile,
+        'separation_over_measured_wobble': separation,
+        'breaks_excluded_and_left_open': int(len(excluded)),
         'membership_repair': 'not attempted; P0-12 stays blocked on official effective-date sets',
         'raw_price_defects_excluded': int(classified.raw_close_contradicted.sum()),
         'design_window_breakpoints': design_breaks.to_dict('records'),
         'design_window_note': 'A breakpoint at or before design_end would move frozen design weights; '
                               'D9 re-asserts those at rtol=1e-12, so the inputs stage refuses to proceed '
                               'and the design caches would have to be rebuilt as a separate recorded decision.'})
-    say(f'D12 repair plan: {len(plan)} segment(s) over {plan.instrument.nunique() if len(plan) else 0} instrument(s)')
+    say(f'D12 repair plan: {len(plan)} segment(s) over {plan.instrument.nunique() if len(plan) else 0} instrument(s); {len(excluded)} confirmed break(s) reported but left open')
     if len(design_breaks):
         say(f'D12 WARNING: {len(design_breaks)} breakpoint(s) fall inside the design window; --stage inputs will stop')
     return {'status': 'completed', 'repository': repository, 'classification': summary,
             'plan_segments': int(len(plan)), 'plan_instruments': int(plan.instrument.nunique()) if len(plan) else 0,
             'design_window_breakpoints': int(len(design_breaks)),
+            'restricted_to': scope, 'breaks_excluded_and_left_open': int(len(excluded)),
+            'noise_profile': profile, 'separation_over_measured_wobble': separation,
             'verification': proof, 'anchor_rule': args.anchor}
 
 
@@ -454,6 +517,12 @@ def main():
                              '"earliest" leaves the frozen design window bit-identical')
     parser.add_argument('--minimum-coverage', type=float, default=.90,
                         help='required independent factor-ratio coverage before a plan may be frozen')
+    parser.add_argument('--restrict-to', action='append', metavar='INSTRUMENT',
+                        help='limit the repair to securities with a recorded root cause (repeatable). '
+                             'The classification still covers everything; the rest is reported, not rewritten.')
+    parser.add_argument('--minimum-separation', type=float, default=3.,
+                        help='how far the smallest confirmed break must clear the wobble this run '
+                             'measured; guards against thresholds that cut through noise')
     parser.add_argument('--mirror', default='link', choices=['link', 'copy'],
                         help='hard-link the untouched provider files, or copy them')
     parser.add_argument('--r0-run-id', default='r0_fixed_v1', help='run ID for the repaired R0')
@@ -464,6 +533,8 @@ def main():
         parser.error('--chunk-size must be positive')
     if not 0 < args.minimum_coverage <= 1:
         parser.error('--minimum-coverage must be a fraction in (0, 1]')
+    if args.minimum_separation < 1:
+        parser.error('--minimum-separation must be at least 1')
 
     config = load_config()
     output = StageOutput(ROOT, args.repair_id, args.stage)
