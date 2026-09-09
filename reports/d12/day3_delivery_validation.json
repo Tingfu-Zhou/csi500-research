@@ -1,0 +1,26 @@
+{
+  "recorded_on": "2026-09-09",
+  "scope": "remote implementation and synthetic tests only; no local Qlib full run",
+  "base_branch": "d12",
+  "base_commit": "a23dc321d68fb254f9f7acef1fbbc06c749b7a35",
+  "tests": {
+    "d11_and_d12_passed": 101,
+    "new_day3_passed": 19,
+    "deselected": 1,
+    "deselected_test": "test_the_accepted_d1_to_d10_files_are_still_byte_identical",
+    "reason": "GitHub connector did not deliver the existing reports/d6_covariance_latest.npz binary. The original physical-file test was not edited; run it on the user's original computer.",
+    "historical_warning": "Existing D11 pandas concat FutureWarning; protected code unchanged.",
+    "command": "PYTHONPATH=. OMP_NUM_THREADS=2 python -m pytest tests/test_d11_core.py tests/test_d11_pipeline.py tests/test_d11_diagnostics.py tests/test_d12_core.py tests/test_d12_scripts.py tests/test_d12_bridge.py tests/test_d12_day3.py -q -k 'not test_the_accepted_d1_to_d10_files_are_still_byte_identical'"
+  },
+  "protected_files": {
+    "github_tree_blob_identity_checked": 140,
+    "drift": [],
+    "basis": "config/d11_baseline.json protected_blobs versus d12 base Git tree"
+  },
+  "runtime": {"python": "3.12.14", "pandas": "2.3.3", "cvxpy": "1.9.2", "clarabel": "0.11.1", "lightgbm": "4.7.0"},
+  "real_data_pipeline_run": false,
+  "repaired_r0_established": false,
+  "formal_r1_ready": false,
+  "frozen_r1_config_changed": false,
+  "user_run": "python -u scripts/d12_day3.py --run-id day3_v1 --replay"
+}
