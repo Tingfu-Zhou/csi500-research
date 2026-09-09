@@ -1,16 +1,25 @@
 {
   "recorded_on": "2026-09-09",
-  "scope": "remote implementation and synthetic tests only; no local Qlib full run",
+  "scope": "production failure diagnosis and remote patch; successful local Qlib full run still pending",
   "base_branch": "d12",
-  "base_commit": "a23dc321d68fb254f9f7acef1fbbc06c749b7a35",
+  "base_commit": "4f63fcd0fda65758f9e4e6841958e8a14e8973be",
   "tests": {
-    "d11_and_d12_passed": 101,
-    "new_day3_passed": 19,
+    "d11_and_d12_passed": 102,
+    "new_day3_passed": 20,
     "deselected": 1,
     "deselected_test": "test_the_accepted_d1_to_d10_files_are_still_byte_identical",
     "reason": "GitHub connector did not deliver the existing reports/d6_covariance_latest.npz binary. The original physical-file test was not edited; run it on the user's original computer.",
     "historical_warning": "Existing D11 pandas concat FutureWarning; protected code unchanged.",
     "command": "PYTHONPATH=. OMP_NUM_THREADS=2 python -m pytest tests/test_d11_core.py tests/test_d11_pipeline.py tests/test_d11_diagnostics.py tests/test_d12_core.py tests/test_d12_scripts.py tests/test_d12_bridge.py tests/test_d12_day3.py -q -k 'not test_the_accepted_d1_to_d10_files_are_still_byte_identical'"
+  },
+  "production_failure": {
+    "run_id": "day3_v1",
+    "stage": "original_r0_full_replay",
+    "error": "ValueError: could not convert string to float: '汽车'",
+    "root_cause": "prefix-only industry column discovery included descriptive industry_name and industry_factor strings",
+    "fix": "select numeric industry dummy columns only, validate styles and the industry_factor-to-dummy mapping",
+    "earlier_stages_completed": true,
+    "failed_run_preserved": true
   },
   "protected_files": {
     "github_tree_blob_identity_checked": 140,
@@ -22,5 +31,5 @@
   "repaired_r0_established": false,
   "formal_r1_ready": false,
   "frozen_r1_config_changed": false,
-  "user_run": "python -u scripts/d12_day3.py --run-id day3_v1 --replay"
+  "user_run": "python -u scripts/d12_day3.py --run-id day3_v2 --replay"
 }

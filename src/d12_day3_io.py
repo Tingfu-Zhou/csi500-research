@@ -5,6 +5,8 @@ import json
 import re
 from pathlib import Path
 
+import pandas as pd
+
 from src.d12_repo import D12Error, sha256
 
 
@@ -106,8 +108,28 @@ def full_replay(market, saved, flags, calendar, config, output):
     from src.d11_core import simulate_causal
     from scripts.d11_diagnose import check_parity
     exposures = saved['factor_exposures']
-    industries = [c for c in exposures if c.startswith('industry_')]
+    # D6 keeps two descriptive string columns beside the numeric one-hot matrix:
+    # `industry_name` (for example "汽车") and `industry_factor`.  A prefix-only
+    # scan accidentally handed both strings to CVXPY.  The actual D11 optimisation
+    # columns are exactly the numeric `industry_*` columns written by
+    # build_industry_dummies; retain all of them, including an all-zero column, so
+    # the replay has the same constraint matrix as the saved run.
+    industries = [c for c in exposures
+                  if c.startswith('industry_') and c not in {'industry_name', 'industry_factor'}
+                  and pd.api.types.is_numeric_dtype(exposures[c])]
     styles = ['style_'+s for s in config['d7']['constrained_style_factors']]
+    missing_styles = [c for c in styles if c not in exposures]
+    nonnumeric_styles = [c for c in styles if c in exposures
+                         and not pd.api.types.is_numeric_dtype(exposures[c])]
+    if not industries or missing_styles or nonnumeric_styles:
+        raise D12Error('Saved factor schema cannot reproduce D11: '
+                       f'industries={len(industries)}, missing_styles={missing_styles}, '
+                       f'nonnumeric_styles={nonnumeric_styles}')
+    if 'industry_factor' in exposures:
+        declared = set(exposures['industry_factor'].dropna().astype(str).unique())
+        if not declared.issubset(industries):
+            raise D12Error('Saved industry_factor contains labels without numeric dummy columns: '
+                           + ', '.join(sorted(declared-set(industries))))
     count = 0
     def progress(target, orders, audit):
         nonlocal count

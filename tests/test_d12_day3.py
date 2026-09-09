@@ -143,7 +143,10 @@ def test_official_list_comparison_counts_all_residual_holdings_and_availability(
 def replay_fixture():
     from test_d11_core import simulation_fixture
     market,pred,ex,flags,calendar,config = simulation_fixture()
-    ex = ex.assign(industry_one=1.)
+    # The real saved D6/D11 frame carries these two descriptive strings next to
+    # the one-hot columns.  Keeping the Chinese name here prevents a prefix scan
+    # from regressing into the production failure seen in day3_v1.
+    ex = ex.assign(industry_one=1., industry_factor='industry_one', industry_name='汽车')
     config['d7']['constrained_style_factors'] = []
     result = simulate_causal(market,pred,ex,flags,calendar,config,['industry_one'],[])
     daily = result.nav.copy()
@@ -161,6 +164,14 @@ def test_full_original_replay_passes_but_neither_r1_zero_gate_nor_p0_gate(tmp_pa
     assert parity['decisions'] == len(saved['audits'])
     assert not parity['r1_zero_coefficient_gate_satisfied']
     assert not parity['p0_quality_certified']
+
+
+def test_replay_uses_numeric_industry_dummies_and_ignores_descriptive_strings(tmp_path):
+    c,cal,m,p,e,f,saved = replay_fixture()
+    assert saved['factor_exposures']['industry_name'].eq('汽车').all()
+    assert saved['factor_exposures']['industry_factor'].eq('industry_one').all()
+    parity = full_replay(m,saved,f,cal,c,Day3Output(tmp_path,'industry_schema'))
+    assert parity['passed']
 
 
 def test_replay_fails_for_changed_orders_even_when_daily_nav_is_unchanged(tmp_path):
