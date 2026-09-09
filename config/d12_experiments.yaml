@@ -265,3 +265,74 @@ day1_findings:
     caveat: >-
       这不是 R1 的目标值，也不是承诺。净超额/IR/回撤的方向由运行回答；
       真实成本下降不自动意味着净收益、TE 或回撤同时改善。
+
+# --- 第3天（续）：价格链修复与修复后 R0 的登记 --------------------------------
+# 在看到修复后任何收益数字之前写成。修复的判定规则、锚的选择、不变量与阻断项都在这里冻结；
+# 事后如需改动，必须先在 experiment_registry.tsv（D3-05..D3-09）留痕。
+day3_price_chain_repair:
+  registered_on: "2026-09-09"
+  frozen: true
+  entry_points:
+    evidence: "scripts/d12_collect_factor_evidence.py"
+    repair: "scripts/d12_repair_r0.py --stage classify|provider|inputs|r0|compare"
+  root_cause:
+    security: SZ302132
+    breakpoint: "2025-02-24"
+    observed_qlib_factor_ratio: 5.975925891558519
+    independent_adj_factor_ratio: 1.0
+    independent_unadjusted_return: -0.015197568389057725
+    evidence_run: "reports/d12/evidence/price_ref_v1"
+    statement: >-
+      Qlib 的 02-17~02-21 五行按“累计复权因子=1”写入（factor = 1/68.01），02-24 起才带上
+      Tushare 的真实 5.976（factor = 5.976/68.01），两段共用同一归一基数。代码变更
+      （300114 -> 302132，2025-02-17 启用）之后增量落库未回填前五行，属转换链拼接断裂，
+      不是除权除息；两段未复权价都与 Tushare 逐日相符。
+  decision_rule:
+    verdicts: [factor_consistent, factor_contradicted, no_independent_evidence]
+    factor_ratio_tolerance: 1.0e-3      # 与 d12_day3.reference_crosscheck 的筛查阈值一致
+    raw_close_tolerance: 1.0e-4
+    minimum_independent_coverage: 0.90  # 低于此值拒绝冻结修复计划
+    statement: >-
+      真实除权日与坏拼接在筛查里同形。唯一判据是同证券同两个交易日的独立复权因子；
+      拿不到就是 no_independent_evidence，永远不记作一致。
+  method:
+    shape: "piecewise-constant multiplier on $factor"
+    anchor: earliest
+    anchor_reason: >-
+      D9 的 assert_design_weight_parity 以 rtol=1e-12 复核冻结设计期权重，float32 只有
+      乘数恰为 1.0 才能逐位往返；锚取 earliest 使第一个断点之前的历史一位不动。
+    max_multiplier: 1.0e6
+    scaled_fields: [open, high, low, close, vwap, factor]
+    inverse_fields: [volume]
+    invariant_fields: [amount, daily_amount_cny, up_limit, down_limit]
+    invariants:
+      - "close/factor（未复权价）逐值不变"
+      - "volume*factor（未复权股数）逐值不变"
+      - "被证据否定的因子比值修正后精确等于独立比值"
+      - "原本与证据一致的比值一个都不被改动"
+    refuses:
+      - "未复权价与独立源不一致的证券（乘子表达不了这类缺陷）"
+      - "断点落在设计期内（需另行决定是否重建 D2 设计期缓存）"
+      - "乘数超出 1e-6 ~ 1e6"
+  cache_invalidation:
+    corrected_provider: "data/d12_repair/<repair-id>/provider"     # 与注册 bundle 并存，硬链接未改文件
+    rebuilt: [benchmark_weights, tradability_flags]
+    rebuilt_by: "scripts/d9_pipeline.build_full_benchmark_weights / build_oos_tradability"
+    invalidated: "d11_v1 的全部预测、模型与模拟产物；由 d11_pipeline.run_research 原函数重建"
+    unchanged: "reports/d11/d11_v1、reports/d11/d11_diagnostic_v1、注册 provider、140 个受保护文件"
+  repaired_r0:
+    run_id_default: r0_fixed_v1
+    code_path: "scripts/d11_pipeline.py::run_research（原函数，未改）"
+    only_difference: "access 指向修正 provider；data.processed_design_dir 与 d9.v2.processed_oos_dir 指向重建缓存"
+    comparison_baseline: d11_v1
+  not_repaired:
+    membership_effective_dates:
+      finding: [P0-12, P0-23]
+      status: blocked_no_official_full_set_evidence
+      reason: >-
+        外部查找时限（方案 §4.1）已过，仍无按生效日给出完整 500 名单与权重的官方证据；
+        proxy 表是后见代理，不能用于重建。且一次只改一个机制，两次运行的差异才可归属。
+  statement: >-
+    修复后的 R0 是“价格链可信”的 R0，不是“全部 P0 已关闭”的 R0；它仍带着一个已披露、
+    未修复的 A 类成分时点问题。修复是数据订正，不是策略改进：收益升降都如实报告，
+    历史 No-Go 不变，归因质量仍为未通过，第四天的 R1 零系数全期门仍是独立必过项。
