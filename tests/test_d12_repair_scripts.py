@@ -246,3 +246,36 @@ def test_an_interrupted_pull_resumes_from_its_per_security_cache(tmp_path):
     second = evidence.collect(fake, ['302132.SZ'], 'adj_factor', '20250203', '20250307', cache, 0)
     assert len(fake.calls) == 1, 'the cached security must not be requested again'
     pd.testing.assert_frame_equal(first, second)
+
+
+# --------------------------------------------------------------------------- the gate that repair_v1 lacked
+
+def test_the_separation_gate_rejects_a_threshold_that_cuts_through_noise():
+    """`repair_v1` exited 0 with 30,030 segments. This is the check that would not have."""
+    from scripts.d12_repair_r0 import separation_gate
+    cutting_through_noise = {'one_session_jump_quantiles': {'0.9999': .013},
+                             'confirmed_break_jump_minimum': .02}
+    with pytest.raises(D12Error, match='cutting through noise'):
+        separation_gate(cutting_through_noise, 3.)
+
+
+def test_the_separation_gate_passes_a_real_step():
+    from scripts.d12_repair_r0 import separation_gate
+    # The SZ302132 splice against the wobble measured on the same run.
+    clean = {'one_session_jump_quantiles': {'0.9999': .013}, 'confirmed_break_jump_minimum': 4.976}
+    assert separation_gate(clean, 3.) == pytest.approx(4.976 / .013)
+
+
+def test_the_separation_gate_stays_quiet_when_there_is_nothing_to_compare():
+    from scripts.d12_repair_r0 import separation_gate
+    assert separation_gate({'one_session_jump_quantiles': {'0.9999': .01},
+                            'confirmed_break_jump_minimum': None}, 3.) is None
+    assert separation_gate({'one_session_jump_quantiles': {}, 'confirmed_break_jump_minimum': 1.}, 3.) is None
+
+
+def test_the_separation_gate_is_wired_into_the_classify_stage():
+    import inspect
+    import scripts.d12_repair_r0 as entry
+    source = inspect.getsource(entry.stage_classify)
+    assert 'separation_gate(profile, args.minimum_separation)' in source
+    assert "output.json('noise_profile.json', profile)" in source

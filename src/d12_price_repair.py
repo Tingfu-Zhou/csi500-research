@@ -27,17 +27,39 @@ import pandas as pd
 from src.d12_repo import D12Error
 
 KEYS = ['trade_date', 'instrument']
-#: Same thresholds `src.d12_day3.reference_crosscheck` already screens with, so a
-#: row this module calls contradicted is a row day-3 already flagged.
-FACTOR_TOL = 1e-3
+#: One-session jump that makes a session worth *looking at*. Deliberately a screen,
+#: not a verdict: on the real bundle the community `$factor` wobbles up to about
+#: five parts in a thousand around its level (see `classify_factor_rows`), so a
+#: number in this range separates candidates from noise but proves nothing by itself.
+SCREEN_TOL = 5e-3
+#: How far the robust level either side of a candidate must actually move before the
+#: candidate is called a break. Same scale as the screen: what promotes a candidate is
+#: that the shift *survives medians*, not that it is larger.
+CONFIRM_TOL = 5e-3
+#: Observed sessions per side of the median comparison. Small enough that a five-session
+#: segment (SZ302132 before its splice) still gets a full window.
+LEVEL_WINDOW = 5
+#: Observations a side must actually have before its median means anything. A session
+#: sitting next to an already-confirmed break gets a one-observation window, and a
+#: "median" of one is the observation itself -- enough to invent a second break out of
+#: ordinary wobble. Below this a candidate is left unconfirmed, which is the honest
+#: answer: two adjacent splices are indistinguishable from one splice plus noise.
+MIN_LEVEL_OBSERVATIONS = 3
 RAW_TOL = 1e-4
+#: Above this share of a security's sessions being breaks, a piecewise-constant model
+#: is not describing the data and the plan is refused rather than written. Only
+#: applied once a series is long enough for a share to mean anything -- a two-session
+#: fixture with one splice is 50% breaks and perfectly well described.
+MAX_BREAK_SHARE = .02
+MIN_SESSIONS_FOR_SHARE_GUARD = 50
 #: Adjusted price columns move with the factor; volume is stored divided by it;
 #: turnover in CNY is unadjusted and must not move at all.
 ADJUSTED_COLUMNS = ('open', 'high', 'low', 'close', 'vwap')
 INVERSE_COLUMNS = ('volume',)
 INVARIANT_COLUMNS = ('amount', 'daily_amount_cny', 'up_limit', 'down_limit')
 
-VERDICTS = ('factor_consistent', 'factor_contradicted', 'no_independent_evidence')
+VERDICTS = ('factor_consistent', 'factor_contradicted', 'factor_noise_not_persistent',
+            'no_independent_evidence')
 
 
 def resolve_reference_duplicates(frame, column, *, rtol=1e-12):
@@ -66,32 +88,110 @@ def _observed(frame, column):
     return values.where(np.isfinite(values) & values.gt(0))
 
 
-def classify_factor_rows(audit, *, factor_tol=FACTOR_TOL, raw_tol=RAW_TOL):
+def _level_shift(values, position, window, boundaries, minimum):
+    """Median of ``scale`` after vs before ``position``, clipped at ``boundaries``.
+
+    ``None`` when a side was cut short *by a confirmed break* and has fewer than
+    ``minimum`` observations left: there, more data exists and we chose not to use it,
+    so a one-observation "median" would be reading noise as a level.  A side limited
+    by the start or end of the series is different -- that is all the evidence there
+    is, and a five-session history with a six-fold step in it is not ambiguous.
+    """
+    below = [b for b in boundaries if b <= position]
+    above = [b for b in boundaries if b > position]
+    low, high = max(below, default=0), min(above, default=len(values))
+    before = values[max(low, position - window):position]
+    after = values[position:min(high, position + window)]
+    before, after = before[np.isfinite(before)], after[np.isfinite(after)]
+    if before.size == 0 or after.size == 0:
+        return None
+    if (below and before.size < minimum) or (above and after.size < minimum):
+        return None
+    return float(np.median(after) / np.median(before))
+
+
+def _confirm_breakpoints(scale, candidates, strength, *, window, confirm_tol,
+                         minimum=MIN_LEVEL_OBSERVATIONS):
+    """Keep only candidates where the *level* of ``scale`` shifts and stays shifted.
+
+    ``scale`` is one instrument's series, positionally indexed, and ``strength`` is
+    each session's own one-session jump on a log scale.  A candidate is judged on
+    robust levels -- medians of up to ``window`` observed sessions on either side --
+    because that is what separates a splice from the bundle's wobble.
+
+    Two details here are load-bearing, and both were wrong in the obvious version.
+
+    A window is clipped only at breaks already *confirmed*, never at other candidates.
+    An isolated one-session outlier is itself a candidate, so clipping at candidates
+    shortens its neighbour's window to one or two values -- and a median of two is
+    just their midpoint, which the outlier then drags far enough to confirm a break
+    that is not there.
+
+    And candidates are settled by descending *jump*, not by descending level shift.
+    The session after a real step sees the same level shift as the step itself, so
+    ranking on level shift can settle the wrong one of the pair and leave the actual
+    step to be confirmed separately against it -- two breaks for one splice.  The
+    jump is unambiguous: it is large exactly at the session where the factor moved.
+    """
+    values = np.asarray(scale, dtype='float64')
+    strength = np.asarray(strength, dtype='float64')
+    confirmed, levels = [], {}
+    for position in sorted(candidates, key=lambda p: -strength[p]):
+        shift = _level_shift(values, position, window, confirmed, minimum)
+        if shift is None:
+            continue
+        levels[position] = shift
+        if abs(shift - 1) > confirm_tol:
+            confirmed.append(position)
+            confirmed.sort()
+    return confirmed, levels
+
+
+def classify_factor_rows(audit, *, screen_tol=SCREEN_TOL, confirm_tol=CONFIRM_TOL,
+                         window=LEVEL_WINDOW, minimum=MIN_LEVEL_OBSERVATIONS, raw_tol=RAW_TOL):
     """Per-session verdict on the Qlib factor chain, on *observed* sessions only.
 
-    Ratios are rebuilt here rather than reused from ``price_audit``.  That routine
-    reindexes onto the exchange calendar and shifts by one calendar row, so a
-    suspension leaves a NaN ratio on the session that resumes -- exactly where a
-    bad splice is most likely to hide.  Pairing consecutive observed sessions
-    instead keeps those comparisons alive, and records which prior session each
-    ratio was taken against so a reviewer can check the pairing by hand.
+    The quantity that matters is the *level*
 
-    A verdict needs the independent factor on *both* sessions of the pair.  With
-    one of them missing the row is ``no_independent_evidence``; it is never
-    silently treated as agreement.
+        scale(t) = factor(t) / independent_factor(t)
+
+    which is constant for as long as the two adjustment chains agree, whatever
+    per-instrument normalisation each vendor uses.  A splice moves that level and
+    leaves it moved; that is the only defect a piecewise-constant repair can express.
+
+    Testing a single session's factor ratio instead is what the first version of
+    this module did, and on the real bundle it was wrong: the community `$factor`
+    wobbles around its level by one to five parts in a thousand and *reverts*
+    (SH600017 returns to 0.488968402 on three separate flagged dates; SH600021 steps
+    down 0.11% and back up six weeks later).  At a 1e-3 ratio tolerance that produced
+    29,529 "contradictions" over 501 securities -- 98% of them between 0.1% and 0.5%,
+    piled against the threshold, which is the shape of a cut through noise rather
+    than a set of findings.  So a candidate is screened on the one-session jump and
+    then has to survive a comparison of medians on both sides; noise cancels there,
+    a splice does not.
+
+    Ratios are rebuilt here rather than reused from ``price_audit``: that routine
+    reindexes onto the exchange calendar and shifts by one calendar row, so a
+    suspension leaves a NaN ratio on the session that resumes -- exactly where a bad
+    splice is most likely to hide.  Pairing consecutive observed sessions keeps those
+    comparisons alive and records which prior session each ratio was taken against.
+
+    A verdict needs the independent factor on *both* sessions of the pair.  With one
+    missing the row is ``no_independent_evidence``; never silently agreement.
     """
     for column in KEYS + ['factor']:
         if column not in audit:
             raise D12Error(f'Factor classification needs column {column!r}')
+    if not 0 < screen_tol <= confirm_tol:
+        raise D12Error('screen_tol must be positive and no larger than confirm_tol')
     frame = audit.loc[_observed(audit, 'factor').notna()].copy()
     if frame.duplicated(KEYS).any():
         raise D12Error('Duplicate instrument/date rows in the price audit')
     frame['trade_date'] = pd.to_datetime(frame.trade_date).dt.normalize()
     frame = frame.sort_values(['instrument', 'trade_date']).reset_index(drop=True)
-    if 'reference_factor' not in frame:
-        frame['reference_factor'] = np.nan
-    if 'reference_close' not in frame:
-        frame['reference_close'] = np.nan
+    for column in ['reference_factor', 'reference_close']:
+        if column not in frame:
+            frame[column] = np.nan
     factor, reference = _observed(frame, 'factor'), _observed(frame, 'reference_factor')
     frame['factor'] = factor
     frame['reference_factor'] = reference
@@ -100,7 +200,13 @@ def classify_factor_rows(audit, *, factor_tol=FACTOR_TOL, raw_tol=RAW_TOL):
     frame['previous_reference_factor'] = reference.groupby(frame.instrument).shift()
     frame['observed_factor_ratio'] = frame.factor / frame.previous_factor
     frame['independent_factor_ratio'] = frame.reference_factor / frame.previous_reference_factor
-    frame['factor_ratio_error'] = (frame.observed_factor_ratio / frame.independent_factor_ratio - 1).abs()
+    # The chain-alignment level, and its one-session jump. `scale_jump` and
+    # `factor_ratio_error` are the same number; the first name says what it measures.
+    frame['scale'] = frame.factor / frame.reference_factor
+    frame['scale_jump'] = (frame.observed_factor_ratio / frame.independent_factor_ratio - 1)
+    frame['factor_ratio_error'] = frame.scale_jump.abs()
+    # Log scale so a halving and a doubling rank as equally strong evidence.
+    frame['jump_strength'] = np.abs(np.log((1 + frame.scale_jump).where(lambda x: x.gt(0)))).fillna(0.0)
     if 'raw_close' in frame:
         raw = _observed(frame, 'raw_close')
     else:
@@ -109,10 +215,35 @@ def classify_factor_rows(audit, *, factor_tol=FACTOR_TOL, raw_tol=RAW_TOL):
     # A disagreeing raw quote is a separate defect; a factor multiplier cannot fix it.
     frame['raw_close_contradicted'] = frame.raw_close_error.gt(raw_tol).fillna(False)
     comparable = frame.observed_factor_ratio.notna() & frame.independent_factor_ratio.notna()
-    frame['verdict'] = np.select(
-        [~comparable, frame.factor_ratio_error.le(factor_tol)],
-        ['no_independent_evidence', 'factor_consistent'], default='factor_contradicted')
-    # The repair multiplier that makes this session's ratio match the evidence.
+
+    frame['segment_index'] = 0
+    frame['level_shift'] = np.nan
+    screened = comparable & frame.factor_ratio_error.gt(screen_tol)
+    verdict = np.where(comparable, 'factor_consistent', 'no_independent_evidence').astype(object)
+    for _, positions in frame.groupby('instrument', sort=False).indices.items():
+        order = np.sort(positions)
+        candidates = [int(i) for i, position in enumerate(order) if screened.iat[position]]
+        if not candidates:
+            continue
+        confirmed, shifts = _confirm_breakpoints(
+            frame.scale.to_numpy()[order], candidates, frame.jump_strength.to_numpy()[order],
+            window=window, confirm_tol=confirm_tol, minimum=minimum)
+        for local, shift in shifts.items():
+            frame.iat[order[local], frame.columns.get_loc('level_shift')] = shift
+        confirmed_set = set(confirmed)
+        for local in candidates:
+            verdict[order[local]] = ('factor_contradicted' if local in confirmed_set
+                                     else 'factor_noise_not_persistent')
+        if confirmed:
+            marks = np.zeros(len(order), dtype=int)
+            marks[np.asarray(confirmed, dtype=int)] = 1
+            frame.iloc[order, frame.columns.get_loc('segment_index')] = marks.cumsum()
+    frame['verdict'] = verdict
+    # Detection and correction are different problems and use different estimators.
+    # `level_shift` (medians) is what *detects* a break, because it has to survive
+    # the wobble. The correction is the exact ratio that puts this session's adjusted
+    # return back on the independent one -- that target is known, so estimating it
+    # robustly would only add error to the single return the multiplier can move.
     frame['implied_correction'] = (frame.independent_factor_ratio / frame.observed_factor_ratio).where(
         frame.verdict.eq('factor_contradicted'))
     return frame
@@ -128,19 +259,47 @@ def classification_summary(classified):
         'independent_coverage': float(classified.verdict.ne('no_independent_evidence').mean())
         if len(classified) else 0.0,
         'contradicted_instruments': int(contradicted.instrument.nunique()),
+        'screened_but_not_persistent_instruments': int(
+            classified.loc[classified.verdict.eq('factor_noise_not_persistent'), 'instrument'].nunique()),
         'raw_close_contradicted_rows': int(classified.raw_close_contradicted.sum()),
         'raw_close_contradicted_instruments': int(
             classified.loc[classified.raw_close_contradicted, 'instrument'].nunique()),
     }
 
 
-def build_repair_plan(classified, *, anchor='earliest', max_multiplier=1e6):
-    """Piecewise-constant factor multipliers, one segment per contradicted session.
+def noise_profile(classified, *, quantiles=(.5, .9, .99, .999, .9999, 1.0)):
+    """The measured one-session wobble on everything not confirmed as a break.
 
-    Each contradicted session ``d`` is a breakpoint: everything before ``d`` sits on
-    a different scale from everything at or after it.  One segment is the anchor and
-    keeps multiplier 1; the rest are derived from it so that every corrected ratio
-    reproduces the independent ratio exactly.
+    Reported next to the thresholds so the cut is auditable against the data that
+    run actually saw, instead of being asserted from a previous run's numbers.
+    """
+    kept = classified.loc[classified.verdict.isin(['factor_consistent', 'factor_noise_not_persistent'])]
+    jump = kept.factor_ratio_error.dropna()
+    breaks = classified.loc[classified.verdict.eq('factor_contradicted'), 'factor_ratio_error'].dropna()
+    return {
+        'sessions_measured': int(len(jump)),
+        'one_session_jump_quantiles': {str(q): float(jump.quantile(q)) for q in quantiles} if len(jump) else {},
+        'confirmed_break_jump_minimum': float(breaks.min()) if len(breaks) else None,
+        'confirmed_breaks': int(len(breaks)),
+        'note': 'A healthy separation shows the unconfirmed wobble ending well below the '
+                'smallest confirmed break. Overlap means the thresholds are cutting through noise.',
+    }
+
+
+def build_repair_plan(classified, *, anchor='earliest', max_multiplier=1e6,
+                      max_break_share=MAX_BREAK_SHARE,
+                      min_sessions_for_share_guard=MIN_SESSIONS_FOR_SHARE_GUARD):
+    """Piecewise-constant factor multipliers, one segment per confirmed break.
+
+    Each confirmed session ``d`` is a breakpoint: everything before ``d`` sits on a
+    different chain level from everything at or after it.  One segment is the anchor
+    and keeps multiplier 1; the rest are derived from it so that the corrected level
+    is the same on both sides of every break.
+
+    ``max_break_share`` is a model-fit guard, not a tuning knob.  A security whose
+    sessions are more than a couple of percent breakpoints is not a spliced series
+    with a few steps in it -- it is a series this model does not describe -- and the
+    plan is refused instead of written.
 
     Only ratios matter downstream -- features, labels, benchmark weights and marks all
     divide one price by another, and an order's notional is units times price -- so
@@ -168,6 +327,12 @@ def build_repair_plan(classified, *, anchor='earliest', max_multiplier=1e6):
                 f'{instrument}: raw closes disagree with the independent source on '
                 f'{int(group.raw_close_contradicted.sum())} session(s); a factor multiplier '
                 'cannot express that defect. Exclude the instrument or resolve the raw quotes first.')
+        share = len(breaks) / max(1, len(group))
+        if len(group) >= min_sessions_for_share_guard and share > max_break_share:
+            raise D12Error(
+                f'{instrument}: {len(breaks)} of {len(group)} observed sessions ({share:.1%}) came back as '
+                f'breaks, above the {max_break_share:.1%} model-fit limit. A piecewise-constant multiplier '
+                'is not describing this series; review the classification before planning a repair.')
         edges = list(breaks.trade_date)
         starts = [group.trade_date.iloc[0]] + edges
         ends = [date - pd.Timedelta(days=1) for date in edges] + [group.trade_date.iloc[-1]]
@@ -250,45 +415,66 @@ def apply_factor_repair(market, plan):
     return result
 
 
-def verify_repair(classified, plan, *, factor_tol=FACTOR_TOL):
+def verify_repair(classified, plan, *, ratio_tol=1e-12, level_tol=CONFIRM_TOL, window=LEVEL_WINDOW,
+                  minimum=MIN_LEVEL_OBSERVATIONS):
     """Prove the plan on the classified rows before any file is written.
 
-    Two properties, both checked on the real data rather than assumed: every
-    contradicted ratio now reproduces the independent ratio, and no ratio that was
-    already consistent was disturbed.
+    Three properties, all measured on the real data rather than assumed.
+
+    Every confirmed break now reproduces the independent ratio exactly -- the target
+    is known, so this one is checked at floating-point scale.  Nothing inside a
+    segment moved: a constant multiplier cancels in a ratio, so within-segment ratios
+    must come back bit-for-bit.  And the residual level mismatch across each break is
+    *reported*, not gated: the correction is anchored on one session's factors, and
+    those carry the provider's own wobble, so a residual of a few parts in a thousand
+    is the data's precision rather than a defect in the plan.
     """
     if plan.empty:
         contradicted = int(classified.verdict.eq('factor_contradicted').sum())
         if contradicted:
-            raise D12Error(f'{contradicted} contradicted session(s) but an empty repair plan')
-        return {'checked_instruments': 0, 'checked_ratios': 0,
-                'maximum_corrected_ratio_error': 0.0, 'maximum_consistent_ratio_shift': 0.0}
-    worst_corrected = worst_consistent = 0.0
+            raise D12Error(f'{contradicted} confirmed break(s) but an empty repair plan')
+        return {'checked_instruments': 0, 'checked_breaks': 0, 'maximum_corrected_ratio_error': 0.0,
+                'maximum_within_segment_shift': 0.0, 'maximum_residual_level_mismatch': 0.0}
+    worst_ratio = worst_within = worst_level = 0.0
     checked = 0
     for instrument, group in classified.loc[classified.instrument.isin(plan.instrument)].groupby('instrument'):
         group = group.sort_values('trade_date')
-        multiplier = segment_multipliers(plan, instrument, group.trade_date)
-        scaled = group.factor.to_numpy() * multiplier.to_numpy()
-        previous = np.concatenate([[np.nan], scaled[:-1]])
-        corrected_ratio = scaled / previous
-        contradicted = group.verdict.eq('factor_contradicted').to_numpy()
-        consistent = group.verdict.eq('factor_consistent').to_numpy()
-        independent = group.independent_factor_ratio.to_numpy()
+        multiplier = segment_multipliers(plan, instrument, group.trade_date).to_numpy()
+        scaled = group.factor.to_numpy() * multiplier
+        corrected_ratio = scaled / np.concatenate([[np.nan], scaled[:-1]])
+        corrected_scale = group.scale.to_numpy() * multiplier
         observed = group.observed_factor_ratio.to_numpy()
-        if contradicted.any():
-            error = np.abs(corrected_ratio[contradicted] / independent[contradicted] - 1)
-            worst_corrected = max(worst_corrected, float(np.nanmax(error)))
-            checked += int(contradicted.sum())
-        if consistent.any():
-            shift = np.abs(corrected_ratio[consistent] / observed[consistent] - 1)
-            worst_consistent = max(worst_consistent, float(np.nanmax(shift)))
-    if worst_corrected > factor_tol:
-        raise D12Error(f'Repaired factor ratio still disagrees with evidence: max error {worst_corrected:.3e}')
-    if worst_consistent > factor_tol:
-        raise D12Error(f'Repair disturbed an already-consistent factor ratio: max shift {worst_consistent:.3e}')
-    return {'checked_instruments': int(plan.instrument.nunique()), 'checked_ratios': checked,
-            'maximum_corrected_ratio_error': worst_corrected,
-            'maximum_consistent_ratio_shift': worst_consistent}
+        independent = group.independent_factor_ratio.to_numpy()
+        breaks = np.flatnonzero(group.verdict.eq('factor_contradicted').to_numpy())
+        for order, position in enumerate(breaks):
+            error = abs(corrected_ratio[position] / independent[position] - 1)
+            if np.isfinite(error):
+                worst_ratio = max(worst_ratio, float(error))
+                checked += 1
+            low = breaks[order - 1] if order else 0
+            high = breaks[order + 1] if order + 1 < len(breaks) else len(corrected_scale)
+            before = corrected_scale[max(low, position - window):position]
+            after = corrected_scale[position:min(high, position + window)]
+            before, after = before[np.isfinite(before)], after[np.isfinite(after)]
+            if before.size and after.size:
+                worst_level = max(worst_level, abs(float(np.median(after) / np.median(before)) - 1))
+        inside = np.ones(len(group), dtype=bool)
+        inside[breaks] = False
+        inside[0] = False
+        if inside.any():
+            shift = np.abs(corrected_ratio[inside] / observed[inside] - 1)
+            if np.isfinite(shift).any():
+                worst_within = max(worst_within, float(np.nanmax(shift)))
+    if worst_ratio > ratio_tol:
+        raise D12Error(f'Repaired ratio still disagrees with the evidence at a confirmed break: {worst_ratio:.3e}')
+    if worst_within > ratio_tol:
+        raise D12Error(f'Repair moved a within-segment ratio it must leave alone: {worst_within:.3e}')
+    return {'checked_instruments': int(plan.instrument.nunique()), 'checked_breaks': checked,
+            'maximum_corrected_ratio_error': worst_ratio,
+            'maximum_within_segment_shift': worst_within,
+            'maximum_residual_level_mismatch': worst_level,
+            'residual_level_note': f'Reported, not gated. A residual up to about {level_tol:.1%} is the '
+                                   "provider's own factor wobble, not a defect in the plan."}
 
 
 def repair_preview(classified, plan):
