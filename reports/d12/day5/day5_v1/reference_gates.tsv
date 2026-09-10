@@ -1,0 +1,13 @@
+strategy	gate	value	operator	threshold	passed
+repaired_r0	annualized_excess_return	0.038543382641389824	>=	0.035	True
+repaired_r0	information_ratio	0.5279797596402093	>=	0.75	False
+repaired_r0	newey_west_t_minimum	1.4984427674882244	>=	2.0	False
+repaired_r0	maximum_relative_drawdown	0.14165624144268096	<=	0.1	False
+repaired_r0	specific_share_net	0.7639664113830505	>=	0.5	True
+repaired_r0	impact2x_annualized_excess_return	0.02943784902998496	>	0.0	True
+r1	annualized_excess_return	0.037396292322368185	>=	0.035	True
+r1	information_ratio	0.5357171031722442	>=	0.75	False
+r1	newey_west_t_minimum	1.5718099073417962	>=	2.0	False
+r1	maximum_relative_drawdown	0.1344236250274975	<=	0.1	False
+r1	specific_share_net	0.7728552711038356	>=	0.5	True
+r1	impact2x_annualized_excess_return	0.031723884333299514	>	0.0	True

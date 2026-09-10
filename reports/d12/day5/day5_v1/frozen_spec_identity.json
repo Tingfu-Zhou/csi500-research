@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "r1_frozen": true,
+    "decision_k": true,
+    "extra_multiplier": true,
+    "execution_k_nominal": true,
+    "execution_config_matches": true,
+    "penalty_expression": true,
+    "amount_minimum": true,
+    "amount_unavailable_90pct": true,
+    "amount_lookback": true,
+    "volatility_minimum": true,
+    "volatility_lookback": true,
+    "fallback": true,
+    "execution_fallback_matches": true,
+    "turnover_cap": true,
+    "participation_monitoring_only": true
+  },
+  "experiment_registry_sha256": "51df8d0a3988fc4aa9df6edb5930b844feb2126ecd537a172f0cdc21824cbfdc",
+  "experiments_sha256": "c47f8d029efcb86da09171752654d675d6185ae01482c15867d5caa5609fff07",
+  "participation_constraint_added": false,
+  "comparison_status": "provisional_due_to_unresolved_P0_12"
+}

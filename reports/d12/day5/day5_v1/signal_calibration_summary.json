@@ -1,0 +1,11 @@
+{
+  "evaluable_rows": 194885,
+  "dates": 391,
+  "deciles": 10,
+  "top_minus_bottom_realized": 0.006511443988981271,
+  "adjacent_up_steps": 5,
+  "decile_spearman": 0.9515151515151514,
+  "zero_intercept_realized_on_expected_scale": 0.6565185859110306,
+  "decile_rmse": 0.0013292120628317686,
+  "prediction_identity": "R0 and R1 reuse the same repaired-R0 predictions; IC/calibration are identical by design"
+}

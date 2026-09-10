@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "maximum_errors": {
+    "daily": 0.0,
+    "returns": 0.0,
+    "targets": 0.0,
+    "orders": 0.0,
+    "order_impact": 0.0,
+    "trades": 0.0,
+    "audits": 0.0
+  },
+  "comparison": "fresh R1 k_decision=0.5/k_execution=0.5 replay vs saved r1_nominal_v1",
+  "decisions": 392,
+  "solver_status_counts": {
+    "optimal": 392
+  },
+  "fallback_used": 0
+}
