@@ -1,0 +1,78 @@
+{
+  "run_id": "day7_v1",
+  "classification": "day7_reporting_and_forward_plan_closeout",
+  "status": "completed",
+  "source_evidence_commit": "197501b91f6370cc449082396f5c1e7ec135ad2b",
+  "branch": "d12",
+  "new_experiment": false,
+  "model_fitted": false,
+  "portfolio_replayed": false,
+  "r2_run": false,
+  "historical_decision": "No-Go",
+  "decision_changed": false,
+  "comparison_status": "provisional_due_to_unresolved_P0_12",
+  "scenarios": {
+    "original_d11_reference": {
+      "annualized_excess_return": 0.04928038579790758,
+      "annualized_tracking_error": 0.06824587355096423,
+      "information_ratio": 0.7221005935414729,
+      "newey_west_t_minimum": 1.9390513923739126,
+      "maximum_relative_drawdown": 0.10569541097837287
+    },
+    "repaired_r0_nominal": {
+      "annualized_excess_return": 0.038543382641389824,
+      "annualized_tracking_error": 0.07300162920573912,
+      "information_ratio": 0.5279797596402093,
+      "newey_west_t_minimum": 1.4984427674882244,
+      "maximum_relative_drawdown": 0.14165624144268096,
+      "reference_gates_passed": 3,
+      "reference_gates_total": 6
+    },
+    "r1_nominal": {
+      "annualized_excess_return": 0.037396292322368185,
+      "annualized_tracking_error": 0.06980604520730506,
+      "information_ratio": 0.5357171031722442,
+      "newey_west_t_minimum": 1.5718099073417962,
+      "maximum_relative_drawdown": 0.1344236250274975,
+      "reference_gates_passed": 3,
+      "reference_gates_total": 6
+    },
+    "repaired_r0_impact2x": {
+      "annualized_excess_return": 0.02943784902998496
+    },
+    "r1_impact2x": {
+      "annualized_excess_return": 0.031723884333299514
+    }
+  },
+  "comparisons": {
+    "repaired_r0_minus_original_d11_annualized_excess_return": -0.010737003156517756,
+    "r1_minus_repaired_r0_annualized_excess_return": -0.0011470903190216389,
+    "r1_minus_repaired_r0_annualized_tracking_error": -0.0031955839984340595,
+    "r1_minus_repaired_r0_information_ratio": 0.007737343532034924,
+    "r1_minus_repaired_r0_maximum_relative_drawdown": -0.007232616415183468,
+    "r1_minus_r0_under_impact2x_annualized_excess_return": 0.002286035303314553
+  },
+  "unresolved": [
+    "P0-12 membership timing",
+    "P0-24 alias missing prices",
+    "P0-27 unclassified factor breaks",
+    "P2 manual review",
+    "R2 full-run resource budget"
+  ],
+  "r2": {
+    "decision": "not_started_blocked",
+    "next_review_date": "2026-09-16",
+    "training_fold_years": "2017-2026",
+    "training_models": 10,
+    "scored_oos_years": "2019-2026",
+    "scored_years": 8
+  },
+  "forward": {
+    "deployed": false,
+    "default_strategy": "repaired_r0",
+    "r1_mode": "independent_shadow_only",
+    "minimum_spec_freeze_target": "2026-09-14",
+    "planned_start": "2026-09-21",
+    "first_review_target": "2026-12-21"
+  }
+}
