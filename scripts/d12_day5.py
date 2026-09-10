@@ -181,7 +181,7 @@ def write_report(output, matrix, effects, attribution, gates, calibration):
     passed = gates.groupby("strategy").passed.agg(["sum", "count"])
     text = f"""# D12 第五天：修复 R0 / R1 归因、交易损耗与冲击压力
 
-状态：本机全量运行完成后由本报告填写。固定修复 R0 预测；未训练模型；R2 未运行。
+状态：本机全量运行结果已写入本报告；最终完成状态以同目录 `manifest.json` 为准。固定修复 R0 预测；未训练模型；R2 未运行。
 
 | 路径 | 决策 k | 执行 k | 年化超额 | IR | NW-t 最小值 | 最大相对回撤 |
 |---|---:|---:|---:|---:|---:|---:|

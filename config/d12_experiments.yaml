@@ -36,10 +36,16 @@ r0:
   historical_decision: "No-Go"
   attribution_quality_passed: false
   repaired_r0:
-    status: not_established
+    status: established_repair_v3
+    source_run: reports/d12/r0_fixed/repair_v3/r0_fixed_v1
+    established_performance:
+      annualized_excess_return: 0.038543382641389824
+      information_ratio: 0.5279797596402093
+      newey_west_t_minimum: 1.4984427674882244
+      maximum_relative_drawdown: 0.14165624144268096
     note: >-
-      仅当第2天出现 A 类（改变收益/成交/信息时点）修复时新增；届时保留 D11 旧结果并记录差额，
-      不覆盖 d11_v1，也不与 R1 的冲击惩罚合并成单一"改进收益"。
+      P0-28 的价格链修复已建立 repair_v3/r0_fixed_v1；保留 D11 旧结果并记录差额，
+      不覆盖 d11_v1，也不与 R1 的冲击惩罚合并成单一"改进收益"。P0-12/P0-24/P0-27 仍未修复。
 
 # --- R1：只加事前预期冲击 ---------------------------------------------------
 r1:
@@ -68,7 +74,7 @@ r1:
       scripts/d12_solver_probe.py --repeats 20（500 只 / 31 行业 / 真实约束 / CLARABEL）：
       abs 20/20 返回 optimal；split 仅 6/20，其余 optimal_inaccurate；两种写法权重差 2.8e-06。
       optimize_at_signal 只接受 optimal，其余抛 PortfolioOptimizationError，故默认取 abs。
-    open: "合成数据上的状态分布不等于真实数据；9/11 实现时必须逐期记录 solver_status"
+    full_period_result: "R1名义路径392/392 optimal、fallback=0；逐期solver_status已保存于r1_nominal_v1"
   k_decision: 0.5
   k_execution_nominal: 0.5
   k_execution_stress: 1.0        # 主要压力：只翻执行端；决策端仍为 0.5
@@ -129,16 +135,18 @@ r1:
     - [done, 预测冲击与执行函数在相同数值输入下的金额/净值成本一致，覆盖买、卖、零交易]
     - [done, 扰动 T 之后的数据不改变 T 时点估计]
     - [done, "k=0 结构性旁路：不把零值非线性项留在目标里改变锥结构，缺失 A 的禁买规则同时旁路"]
-    # 仍待全期运行验证
-    - [pending, "k=0 全期重放按原容差重现 R0：目标、订单、成交、现金、净值全部一致"]
-    - [pending, 求解状态、约束违规、样本覆盖逐期记录]
-    - [pending, 事前 c 与 trades.parquet 反解出的事后 c 的误差分布已披露]
+    # 本机全期运行已验证
+    - [done, "k=0 全期重放按原容差重现修复 R0：daily/returns/targets/orders/trades 最大误差全部为0"]
+    - [done, "R1名义392/392 optimal、fallback=0；约束违规与样本覆盖逐期记录"]
+    - [done, "事前参与率、sigma来源、预期冲击及执行端截断已披露；事前参与率>5%为0，实际截断1条"]
   runs:
     - id: r1_nominal
-      status: not_started
+      status: completed
+      run_id: r1_nominal_v1
       execution_k: 0.5
     - id: r1_impact2x
-      status: not_started
+      status: completed_inside_day5_v1
+      run_id: day5_v1
       execution_k: 1.0
       note: "按实际现金/持仓反馈重跑，不是事后从净值减一倍费用"
 
@@ -148,7 +156,7 @@ r2:
   conditional: true
   question: "固定的较保守树配置能否改善跨年稳定性？"
   is_required_deliverable: false
-  decision_deadline: "2026-09-11 12:00 Asia/Shanghai"
+  original_decision_deadline: "2026-09-11 12:00 Asia/Shanghai（已按计划顺延且本周未运行）"
   start_conditions:            # 全部满足才启动；只决定运行或顺延，不按 R1 好坏改参数
     - R0 可信（P0 无未修复的 A 类问题）
     - R1 名义与压力运行均已完成
@@ -178,11 +186,66 @@ r2:
       **并新增了早停机制**，任何增量都不能归因到单一参数。
   unchanged: [原 Alpha158 特征, 原 5 交易日标签, 原 PIT 池, R0 组合与执行规则]
   not_combined_with_r1: true
-  open_question:
-    fold_count: >-
-      d11_v1 记录 10 折（2017-2026），config d9.expected_fold_count 为 8。
-      R2 启动前必须定死重训哪几折，否则耗时估算和结果口径都不可比。
-  status: not_started
+  fold_resolution:
+    status: resolved_on_day6
+    training_fold_years: [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    scored_oos_years: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    decision: >-
+      若未来启动 R2，重训 2017-2026 共 10 个年度模型；2017-2018 只用于建立因果校准历史，
+      2019-2026 才是 8 个评分/交易年度。因此 d11_v1 的 10 folds 与
+      config d9.expected_fold_count=8 分别计数训练模型和 OOS 评价年度，并不冲突。
+  next_start_condition_review: "2026-09-16"
+  status: frozen_for_next_week_blocked_pending_start_conditions
+
+# --- 第6天冻结：P2、R2 交接与最小前向记录 -------------------------------
+day6_freeze:
+  frozen: true
+  recorded_on: "2026-09-10"
+  p2:
+    target_years: [2023, 2025]
+    deciles: 10
+    decile_assignment: "每个信号日按 prediction 升序 rank(method=first) 等人数分组"
+    feature_reference: "strictly earlier scored OOS years"
+    feature_review_thresholds:
+      absolute_median_shift_iqr: 1.0
+      missing_fraction_change: 0.05
+      outside_reference_q01_q99_fraction: 0.10
+    interpretation: >-
+      以上阈值只生成待人工复核的描述性筛查标记，不自动判成数据错误，
+      不自动满足 R2 启动条件，也不允许事后修改十分组切点。
+  r2_decision:
+    this_week: not_run
+    reason: >-
+      P0-12、P0-24、P0-27 仍未关闭；P2 只有初诊，且 R2 完整训练耗时未实测。
+      9月16日按原四项 start_conditions 重新检查，不因 R1 结果临时改参数。
+  forward_recording:
+    spec_freeze_target: "2026-09-14"
+    planned_start: "2026-09-21"
+    first_review_target: "2026-12-21"
+    dates_are_targets_not_deployments: true
+    default_strategy: R0
+    r1_policy: "independent shadow path"
+    no_fill_engine_policy: "log scores and simulated orders; do not claim strategy return"
+    mature_label_policy: "append later; never overwrite the original score"
+    minimum_fields:
+      - run_timestamp
+      - data_cutoff_and_version
+      - model_and_config_hash
+      - then_available_universe
+      - scores
+      - reference_holdings
+      - proposed_quantities
+      - failure_reason
+    before_start:
+      - 更新新日期行情、交易日历和成分证据
+      - 确认数据访问窗口、Alpha158 预热和因果校准可用
+      - 为 2026-08-31 之后新增独立、当时有效的税费配置版本；历史配置不改
+    return_claim_requires:
+      - 成交规则与实际/模拟成交记录
+      - 连续现金和持仓账本
+      - 成本与每日估值
+      - 未成交及失败的连续记录
+    first_review_scope: "运行可靠性、预测漂移与执行偏差；约三个月不构成持续 alpha 的统计证明"
 
 # --- 边界 -------------------------------------------------------------------
 boundaries:
