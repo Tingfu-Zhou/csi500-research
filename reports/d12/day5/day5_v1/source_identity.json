@@ -1,0 +1,25 @@
+{
+  "zero_run_id": "zero_v1",
+  "zero_manifest_sha256": "7c18ae569ed73c8f566057795faa6ed760cd9163323113ca286484dbc0e5f474",
+  "r1_run_id": "r1_nominal_v1",
+  "r1_manifest_sha256": "2ba3546c3118fa4795a1699b9cb75c237fdf04babacd1916bd37430aa6b75f3d",
+  "r1_performance": {
+    "months": 92,
+    "annualized_excess_return": 0.037396292322368185,
+    "annualized_tracking_error": 0.06980604520730506,
+    "information_ratio": 0.5357171031722442,
+    "identity_ir_times_te": 0.037396292322368185,
+    "newey_west_t_by_lag": {
+      "3": 1.5718099073417962,
+      "4": 1.5936711920103224,
+      "5": 1.6163135393524837,
+      "6": 1.6321251738647007
+    },
+    "newey_west_t_minimum": 1.5718099073417962,
+    "newey_west_decision_rule": "minimum_across_configured_lags",
+    "maximum_relative_drawdown": 0.1344236250274975,
+    "portfolio_cumulative_return": 1.8332587731569272,
+    "benchmark_cumulative_return": 1.1501342961961596,
+    "cumulative_excess_return_difference": 0.6831244769607676
+  }
+}
