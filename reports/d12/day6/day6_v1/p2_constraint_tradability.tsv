@@ -1,0 +1,5 @@
+strategy	year	decisions	target_rows	mean_buy_eligible_fraction	mean_prohibited_or_unknown_names	turnover_cap_binding_fraction	stock_limit_binding_fraction	industry_limit_binding_fraction	style_limit_binding_fraction	mean_mandatory_turnover	maximum_prohibited_buy_weight	trade_rows	participation_limited_rows	cash_scaled_buy_rows	unfilled_signal_cny	interpretation
+repaired_r0	2023	50	25000	0.93144	34.28	1.0	1.0	1.0	0.16	0.005975745882373358	0.0	23680	0	0	8204611.179845163	observed binding telemetry; not a constraint-relaxation counterfactual
+repaired_r0	2025	53	26500	0.9872830188679246	6.3584905660377355	1.0	1.0	1.0	0.1509433962264151	0.016783422020957915	0.0	25966	0	0	26421138.183755606	observed binding telemetry; not a constraint-relaxation counterfactual
+r1	2023	50	25000	0.93052	34.74	1.0	1.0	1.0	0.16	0.006216618164158201	0.0	24653	0	8909	7654310.258228773	observed binding telemetry; not a constraint-relaxation counterfactual
+r1	2025	53	26500	0.985056603773585	7.471698113207547	1.0	1.0	1.0	0.18867924528301888	0.0159371213395402	0.0	26175	0	11951	25230076.21293774	observed binding telemetry; not a constraint-relaxation counterfactual

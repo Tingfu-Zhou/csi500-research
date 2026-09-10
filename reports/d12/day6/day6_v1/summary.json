@@ -1,0 +1,179 @@
+{
+  "classification": "day6_p2_initial_diagnostic_r2_and_forward_freeze",
+  "source_identity": {
+    "day5_run_id": "day5_v1",
+    "day5_manifest_sha256": "e5bdee4f63218db84c8dfec22e44c9d6f31bd8819d80fb5d55609e929363be2a",
+    "r1_run_id": "r1_nominal_v1",
+    "r1_manifest_sha256": "2ba3546c3118fa4795a1699b9cb75c237fdf04babacd1916bd37430aa6b75f3d",
+    "repaired_r0": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+    "repaired_r0_manifest_sha256": "24c62b32d5e345da2a60341d006c6ff372415f3f7bb6dde085a4d17f2ca4ab74",
+    "corrected_provider": "data/d12_repair/repair_v3/provider"
+  },
+  "model_fitted": false,
+  "portfolio_replayed": false,
+  "r2_run": false,
+  "target_years": [
+    2023,
+    2025
+  ],
+  "p2": {
+    "signal": [
+      {
+        "year": 2023,
+        "rows": 24913,
+        "dates": 50,
+        "rank_ic_mean": 0.005748694566909983,
+        "rank_ic_positive_fraction": 0.52,
+        "top_minus_bottom_mean": 0.002204977490464035,
+        "top_minus_bottom_median": -0.00022328656546923573,
+        "top_minus_bottom_positive_fraction": 0.48,
+        "best_five_positive_spread_share": 0.5329408662672154,
+        "best_date": "2023-06-16 00:00:00",
+        "worst_date": "2023-03-17 00:00:00",
+        "decile_spearman": -0.33333333333333326,
+        "adjacent_up_steps": 4,
+        "zero_intercept_realized_on_expected_scale": 0.06170258006322042,
+        "registered_issue": "near_zero_signal_year"
+      },
+      {
+        "year": 2025,
+        "rows": 26424,
+        "dates": 53,
+        "rank_ic_mean": 0.03377954146084915,
+        "rank_ic_positive_fraction": 0.7169811320754716,
+        "top_minus_bottom_mean": -0.0008857347316176427,
+        "top_minus_bottom_median": 0.0001101768016815198,
+        "top_minus_bottom_positive_fraction": 0.5094339622641509,
+        "best_five_positive_spread_share": 0.4339580429350392,
+        "best_date": "2025-03-14 00:00:00",
+        "worst_date": "2025-12-31 00:00:00",
+        "decile_spearman": -0.01818181818181818,
+        "adjacent_up_steps": 5,
+        "zero_intercept_realized_on_expected_scale": 0.022812537927217463,
+        "registered_issue": "positive_rank_ic_negative_tail_spread"
+      }
+    ],
+    "feature_review": [
+      {
+        "year": 2023,
+        "features": 158,
+        "review_flags": 0,
+        "top_absolute_median_shift_feature": "CNTN5",
+        "top_absolute_median_shift_iqr": 1.0,
+        "maximum_missing_fraction_change_abs": 0.001987317073170732,
+        "maximum_outside_reference_fraction": 0.040557871112536066,
+        "interpretation": "descriptive review screen; not an automatic data-error finding"
+      },
+      {
+        "year": 2025,
+        "features": 158,
+        "review_flags": 0,
+        "top_absolute_median_shift_feature": "CNTD5",
+        "top_absolute_median_shift_iqr": 0.5,
+        "maximum_missing_fraction_change_abs": 0.0005554322357873968,
+        "maximum_outside_reference_fraction": 0.03688741221777543,
+        "interpretation": "descriptive review screen; not an automatic data-error finding"
+      }
+    ],
+    "constraints": [
+      {
+        "strategy": "repaired_r0",
+        "year": 2023,
+        "decisions": 50,
+        "target_rows": 25000,
+        "mean_buy_eligible_fraction": 0.93144,
+        "mean_prohibited_or_unknown_names": 34.28,
+        "turnover_cap_binding_fraction": 1.0,
+        "stock_limit_binding_fraction": 1.0,
+        "industry_limit_binding_fraction": 1.0,
+        "style_limit_binding_fraction": 0.16,
+        "mean_mandatory_turnover": 0.005975745882373358,
+        "maximum_prohibited_buy_weight": 0.0,
+        "trade_rows": 23680,
+        "participation_limited_rows": 0,
+        "cash_scaled_buy_rows": 0,
+        "unfilled_signal_cny": 8204611.179845163,
+        "interpretation": "observed binding telemetry; not a constraint-relaxation counterfactual"
+      },
+      {
+        "strategy": "repaired_r0",
+        "year": 2025,
+        "decisions": 53,
+        "target_rows": 26500,
+        "mean_buy_eligible_fraction": 0.9872830188679246,
+        "mean_prohibited_or_unknown_names": 6.3584905660377355,
+        "turnover_cap_binding_fraction": 1.0,
+        "stock_limit_binding_fraction": 1.0,
+        "industry_limit_binding_fraction": 1.0,
+        "style_limit_binding_fraction": 0.1509433962264151,
+        "mean_mandatory_turnover": 0.016783422020957915,
+        "maximum_prohibited_buy_weight": 0.0,
+        "trade_rows": 25966,
+        "participation_limited_rows": 0,
+        "cash_scaled_buy_rows": 0,
+        "unfilled_signal_cny": 26421138.183755606,
+        "interpretation": "observed binding telemetry; not a constraint-relaxation counterfactual"
+      },
+      {
+        "strategy": "r1",
+        "year": 2023,
+        "decisions": 50,
+        "target_rows": 25000,
+        "mean_buy_eligible_fraction": 0.93052,
+        "mean_prohibited_or_unknown_names": 34.74,
+        "turnover_cap_binding_fraction": 1.0,
+        "stock_limit_binding_fraction": 1.0,
+        "industry_limit_binding_fraction": 1.0,
+        "style_limit_binding_fraction": 0.16,
+        "mean_mandatory_turnover": 0.006216618164158201,
+        "maximum_prohibited_buy_weight": 0.0,
+        "trade_rows": 24653,
+        "participation_limited_rows": 0,
+        "cash_scaled_buy_rows": 8909,
+        "unfilled_signal_cny": 7654310.258228773,
+        "interpretation": "observed binding telemetry; not a constraint-relaxation counterfactual"
+      },
+      {
+        "strategy": "r1",
+        "year": 2025,
+        "decisions": 53,
+        "target_rows": 26500,
+        "mean_buy_eligible_fraction": 0.985056603773585,
+        "mean_prohibited_or_unknown_names": 7.471698113207547,
+        "turnover_cap_binding_fraction": 1.0,
+        "stock_limit_binding_fraction": 1.0,
+        "industry_limit_binding_fraction": 1.0,
+        "style_limit_binding_fraction": 0.18867924528301888,
+        "mean_mandatory_turnover": 0.0159371213395402,
+        "maximum_prohibited_buy_weight": 0.0,
+        "trade_rows": 26175,
+        "participation_limited_rows": 0,
+        "cash_scaled_buy_rows": 11951,
+        "unfilled_signal_cny": 25230076.21293774,
+        "interpretation": "observed binding telemetry; not a constraint-relaxation counterfactual"
+      }
+    ],
+    "automatic_flags_are_causal_findings": false,
+    "manual_review_required": true
+  },
+  "r2": {
+    "ready_to_start": false,
+    "decision": "not_started_blocked",
+    "next_review_date": "2026-09-16",
+    "r2_run_this_week": false
+  },
+  "forward": {
+    "deployed": false,
+    "planned_start": "2026-09-21",
+    "first_review_target": "2026-12-21"
+  },
+  "historical_decision": "No-Go",
+  "decision_changed": false,
+  "new_oos_validation": false,
+  "comparison_status": "provisional_due_to_unresolved_P0_12",
+  "unresolved": [
+    "P0-12 membership timing",
+    "P0-24 alias missing prices",
+    "P0-27 unclassified factor breaks"
+  ]
+}

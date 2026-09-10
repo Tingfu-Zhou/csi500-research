@@ -1,0 +1,9 @@
+{
+  "day5_run_id": "day5_v1",
+  "day5_manifest_sha256": "e5bdee4f63218db84c8dfec22e44c9d6f31bd8819d80fb5d55609e929363be2a",
+  "r1_run_id": "r1_nominal_v1",
+  "r1_manifest_sha256": "2ba3546c3118fa4795a1699b9cb75c237fdf04babacd1916bd37430aa6b75f3d",
+  "repaired_r0": "reports/d12/r0_fixed/repair_v3/r0_fixed_v1",
+  "repaired_r0_manifest_sha256": "24c62b32d5e345da2a60341d006c6ff372415f3f7bb6dde085a4d17f2ca4ab74",
+  "corrected_provider": "data/d12_repair/repair_v3/provider"
+}

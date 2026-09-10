@@ -1,0 +1,7 @@
+{
+  "files": 128082,
+  "bytes": 5867188578,
+  "canonical_json_sha256": "dd89369ed817ab2b6134ec86249c32f757aeb501c3c92568b05ddf275a844150",
+  "detail_file": "inputs_before.parquet",
+  "detail_note": "gitignored local evidence; manifest records its file SHA256"
+}

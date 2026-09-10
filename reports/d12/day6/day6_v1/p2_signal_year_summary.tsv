@@ -1,0 +1,3 @@
+year	rows	dates	rank_ic_mean	rank_ic_positive_fraction	top_minus_bottom_mean	top_minus_bottom_median	top_minus_bottom_positive_fraction	best_five_positive_spread_share	best_date	worst_date	decile_spearman	adjacent_up_steps	zero_intercept_realized_on_expected_scale	registered_issue
+2023	24913	50	0.005748694566909983	0.52	0.002204977490464035	-0.00022328656546923573	0.48	0.5329408662672154	2023-06-16	2023-03-17	-0.33333333333333326	4	0.06170258006322042	near_zero_signal_year
+2025	26424	53	0.03377954146084915	0.7169811320754716	-0.0008857347316176427	0.0001101768016815198	0.5094339622641509	0.4339580429350392	2025-03-14	2025-12-31	-0.01818181818181818	5	0.022812537927217463	positive_rank_ic_negative_tail_spread

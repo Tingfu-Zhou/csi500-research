@@ -1,0 +1,25 @@
+{
+  "run_id": "day7_v1",
+  "status": "completed",
+  "mode": "report_only_closeout",
+  "source_evidence_commit": "197501b91f6370cc449082396f5c1e7ec135ad2b",
+  "branch": "d12",
+  "new_experiment": false,
+  "model_fitted": false,
+  "portfolio_replayed": false,
+  "r2_run": false,
+  "historical_decision": "No-Go",
+  "decision_changed": false,
+  "deliverables": [
+    "D12第七天汇报.md",
+    "reports/d12/day7/day7_v1/summary.json",
+    "reports/d12/day7/day7_v1/evidence_index.tsv",
+    "reports/d12/day7/day7_v1/manifest.json"
+  ],
+  "updated_closeout_documents": [
+    "D12运行说明.md",
+    "D12第六天运行说明.md",
+    "reports/d12/experiment_registry.tsv"
+  ],
+  "note": "Day7 is a documentation and governance closeout. It adds no backtest, model fit, portfolio replay, or new OOS evidence."
+}

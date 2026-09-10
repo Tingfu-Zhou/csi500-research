@@ -1,0 +1,5 @@
+condition	status	evidence
+R0 credible; no unresolved class-A P0	blocked	P0-12 membership timing, P0-24 alias missing prices, P0-27 unclassified factor breaks
+R1 nominal and execution-impact stress completed	passed	day5 completed manifest
+P2 review found no uncorrected data/calibration error	pending_manual_review	automatic screens are descriptive and cannot close this condition
+resource budget leaves time for complete run and review	unverified	R2 training runtime has not been measured

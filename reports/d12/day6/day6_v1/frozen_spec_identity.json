@@ -1,0 +1,41 @@
+{
+  "r1": {
+    "checks": {
+      "r1_frozen": true,
+      "decision_k": true,
+      "extra_multiplier": true,
+      "execution_k_nominal": true,
+      "execution_config_matches": true,
+      "penalty_expression": true,
+      "amount_minimum": true,
+      "amount_unavailable_90pct": true,
+      "amount_lookback": true,
+      "volatility_minimum": true,
+      "volatility_lookback": true,
+      "fallback": true,
+      "execution_fallback_matches": true,
+      "turnover_cap": true,
+      "participation_monitoring_only": true
+    },
+    "experiment_registry_sha256": "23827dd9c94b1ce2bf775246466dc7986fa079362a725d58373274ffddaff2ef",
+    "experiments_sha256": "5bde5177793dd718da398e62ee2ef30f5fbe526b60feb824fe01536069eb4a5d",
+    "participation_constraint_added": false,
+    "comparison_status": "provisional_due_to_unresolved_P0_12"
+  },
+  "day6": {
+    "day6_frozen": true,
+    "target_years": true,
+    "deciles": true,
+    "causal_reference": true,
+    "r2_frozen": true,
+    "r2_not_run": true,
+    "r2_ten_training_folds": true,
+    "r2_eight_scored_years": true,
+    "forward_default_r0": true,
+    "r1_independent_shadow": true,
+    "no_return_without_fills": true,
+    "mature_labels_append_only": true
+  },
+  "experiments_sha256": "5bde5177793dd718da398e62ee2ef30f5fbe526b60feb824fe01536069eb4a5d",
+  "registry_sha256": "23827dd9c94b1ce2bf775246466dc7986fa079362a725d58373274ffddaff2ef"
+}
