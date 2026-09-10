@@ -1,0 +1,17 @@
+{
+  "provider": "data/d12_repair/repair_v3/provider",
+  "feature_spec_sha256": "0bd04337f8334ce9c8158a4a4f5d7108e072cacded7219808da3b3d3afd95e36",
+  "features": 158,
+  "rows": 179500,
+  "dates": 359,
+  "years": [
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "model_fitted": false
+}

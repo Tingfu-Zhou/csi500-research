@@ -1,0 +1,12 @@
+{
+  "target_years": [
+    2023,
+    2025
+  ],
+  "deciles": 10,
+  "observations": 51337,
+  "dates": 103,
+  "diagnostic_only": true,
+  "model_or_cutpoints_changed": false,
+  "prediction_identity": "repaired R0 and R1 reuse the same fixed predictions"
+}

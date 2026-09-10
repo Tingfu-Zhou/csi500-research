@@ -1,0 +1,86 @@
+{
+  "stages": [
+    {
+      "stage": "repository",
+      "status": "ok",
+      "seconds": 0.052,
+      "detail": {
+        "branch": "d12",
+        "head": "c6c013f3aa1da3bd95388046c2c12da9e8fdb477",
+        "baseline": "42c8870392a3d45f531cffbefbc138e5d8fbb328",
+        "frozen_oos": "14cf2dda745840b8bfd614b504b39b1ef66617e0",
+        "frozen_tag_object": "56fcc1d83fcdd6d40f6e7d8066f819c5ae828220",
+        "protected_tracked_files": 140
+      }
+    },
+    {
+      "stage": "required_inputs",
+      "status": "ok",
+      "seconds": 0.0,
+      "detail": {
+        "declared": 36,
+        "absent": 0,
+        "absent_examples": [],
+        "qlib_provider": "/home/tingfu/.qlib/qlib_data/cn_data_community",
+        "qlib_provider_ready": true
+      }
+    },
+    {
+      "stage": "registered_sha256",
+      "status": "ok",
+      "seconds": 0.001,
+      "detail": {
+        "files": {
+          "config/config.yaml": "ok",
+          "reports/d9_run_manifest.json": "ok",
+          "reports/d9_recovery_manifest.json": "ok",
+          "reports/d9_v2_feasibility_audit.json": "ok",
+          "reports/d9_v2_feasibility_dates.parquet": "ok"
+        },
+        "failed": []
+      }
+    },
+    {
+      "stage": "environment",
+      "status": "ok",
+      "seconds": 0.012,
+      "detail": {
+        "python": "3.11.16",
+        "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+        "missing_packages": [],
+        "pinned": {
+          "qlib": "0.9.7",
+          "lightgbm": "4.7.0",
+          "cvxpy": "1.9.2",
+          "clarabel": "0.11.1"
+        },
+        "observed": {
+          "qlib": "0.9.7",
+          "lightgbm": "4.7.0",
+          "cvxpy": "1.9.2",
+          "clarabel": "0.11.1"
+        },
+        "version_mismatches": {}
+      }
+    },
+    {
+      "stage": "saved_runs",
+      "status": "ok",
+      "seconds": 0.003,
+      "detail": {
+        "d11_v1": {
+          "declared": 832,
+          "missing": 0,
+          "missing_examples": [],
+          "missing_all_parquet": true
+        },
+        "d11_diagnostic_v1": {
+          "declared": 37,
+          "missing": 0,
+          "missing_examples": [],
+          "missing_all_parquet": true
+        }
+      }
+    }
+  ]
+}

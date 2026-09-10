@@ -1,0 +1,10 @@
+item	status	evidence_or_requirement
+freeze minimum specification	planned	2026-09-14
+new-date market/calendar refresh	pending	must extend beyond 2026-08-31
+point-in-time membership evidence	blocked	P0-12 remains unresolved
+feature warm-up and causal calibration	pending	verify before first signal
+forward-valid tax/cost configuration	blocked	add separate version before fills after 2026-08-31
+R0 score and simulated-order log schema	specified	run_timestamp, data_cutoff_and_version, model_and_config_hash, then_available_universe, scores, reference_holdings, proposed_quantities, failure_reason
+R1 independent shadow path	optional	never choose the better path day by day
+forward logging start	planned	2026-09-21
+first operating/signal review	planned	2026-12-21
